@@ -1,0 +1,111 @@
+/*
+ * trajectory.c
+ *
+ *  Created on: May 3, 2026
+ *      Author: rajap
+ */
+
+#include "trajectory.h"
+
+// helper
+static float Clamp(float x, float min, float max) {
+	if (x < min)
+		return min;
+	if (x > max)
+		return max;
+	return x;
+}
+
+/* ---- Single segment ---- */
+
+float MJT_Pos(float t, float T, float q0, float qf) {
+	float tau = Clamp(t / T, 0.0f, 1.0f);
+
+	float t2 = tau * tau;
+	float t3 = t2 * tau;
+	float t4 = t3 * tau;
+	float t5 = t4 * tau;
+
+	return q0 + (qf - q0) * (10.0f * t3 - 15.0f * t4 + 6.0f * t5);
+}
+
+float MJT_Vel(float t, float T, float q0, float qf) {
+	float tau = Clamp(t / T, 0.0f, 1.0f);
+
+	float t2 = tau * tau;
+	float t3 = t2 * tau;
+	float t4 = t3 * tau;
+
+	return (qf - q0) * (30.0f * t2 - 60.0f * t3 + 30.0f * t4) / T;
+}
+
+float MJT_Acc(float t, float T, float q0, float qf) {
+	float tau = Clamp(t / T, 0.0f, 1.0f);
+
+	float t2 = tau * tau;
+	float t3 = t2 * tau;
+
+	return (qf - q0) * (60.0f * tau - 180.0f * t2 + 120.0f * t3) / (T * T);
+}
+
+/* ---- Multi segment ---- */
+
+void MJT_Goal(struct MJT_Trajectory *traj, const struct MJT_Segment *segments,
+		int num_segments) {
+	traj->segments = segments;
+	traj->num_segments = num_segments;
+	traj->is_wait = false;
+	traj->current = 0;
+	traj->q0 = 0.0f;
+	traj->t = 0.0f;
+}
+
+void MJT_Update(struct MJT_Trajectory *traj, float dt) {
+	if (traj->is_wait)
+		return;
+
+	const struct MJT_Segment *seg = &traj->segments[traj->current];
+
+	if (traj->current >= traj->num_segments) {
+		traj->current = traj->num_segments - 1;
+		traj->t = seg->T;
+		return;
+	}
+
+	traj->t += dt;
+
+	if (traj->t >= seg->T) {
+		traj->t -= seg->T;
+		traj->q0 = seg->qf;
+		traj->is_wait = true;
+	}
+}
+
+static const struct MJT_Segment* current_seg(const struct MJT_Trajectory *traj) {
+	return &traj->segments[traj->current];
+}
+
+float MJT_get_Pos(const struct MJT_Trajectory *traj) {
+	const struct MJT_Segment *s = current_seg(traj);
+	return MJT_Pos(traj->t, s->T, traj->q0, s->qf);
+}
+
+float MJT_get_Vel(const struct MJT_Trajectory *traj) {
+	const struct MJT_Segment *s = current_seg(traj);
+	return MJT_Vel(traj->t, s->T, traj->q0, s->qf);
+}
+
+float MJT_get_Acc(const struct MJT_Trajectory *traj) {
+	const struct MJT_Segment *s = current_seg(traj);
+	return MJT_Acc(traj->t, s->T, traj->q0, s->qf);
+}
+
+void MJI_Continue(struct MJT_Trajectory *traj) {
+	traj->current++;
+	traj->is_wait = false;
+}
+
+bool MJT_is_Finished(const struct MJT_Trajectory *traj) {
+	return (traj->current == traj->num_segments - 1)
+			&& (traj->t >= traj->segments[traj->current].T);
+}

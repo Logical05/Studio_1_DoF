@@ -1,0 +1,10 @@
+15:04:17 **** Build of configuration Debug for project Polling_Interrupt_DMA ****
+make -j16 all 
+arm-none-eabi-size  Polling_Interrupt_DMA.elf 
+   text	   data	    bss	    dec	    hex	filename
+  15776	     12	   1692	  17480	   4448	Polling_Interrupt_DMA.elf
+Finished building: default.size.stdout
+ 
+
+15:04:17 Build Finished. 0 errors, 0 warnings. (took 196ms)
+

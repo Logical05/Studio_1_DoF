@@ -1,0 +1,10 @@
+15:04:17 **** Build of configuration Debug for project LAB_TIMER ****
+make -j16 all 
+arm-none-eabi-size  LAB_TIMER.elf 
+   text	   data	    bss	    dec	    hex	filename
+  21204	     12	   2028	  23244	   5acc	LAB_TIMER.elf
+Finished building: default.size.stdout
+ 
+
+15:04:17 Build Finished. 0 errors, 0 warnings. (took 213ms)
+

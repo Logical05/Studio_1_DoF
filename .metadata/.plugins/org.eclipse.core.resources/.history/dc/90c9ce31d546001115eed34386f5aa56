@@ -1,0 +1,43 @@
+/*
+ * Minimum Jerk Polynomial Trajectory
+ *
+ * trajectory.h
+ *
+ *  Created on: May 3, 2026
+ *      Author: rajap
+ */
+
+#ifndef INC_TRAJECTORY_H_
+#define INC_TRAJECTORY_H_
+
+struct MJT_Segment {
+	float q0;
+	float qf;
+	float T;
+};
+
+struct MJT_Trajectory {
+	const struct MJ_Segment *segments;
+	int num_segments;
+
+	int current;
+	float t;     // local time in segment
+};
+
+// Single segment
+float MJT_Pos(float t, float T, float q0, float qf);
+float MJT_Vel(float t, float T, float q0, float qf);
+float MJT_Acc(float t, float T, float q0, float qf);
+
+// ===== Multi segment =====
+void mj_init(struct MJT_Trajectory *traj, const MJT_Segment *segments, int num_segments);
+void mj_reset(struct MJT_Trajectory *traj);
+void mj_update(struct MJT_Trajectory *traj, float dt);
+
+float mj_get_pos(const struct MJT_Trajectory *traj);
+float mj_get_vel(const struct MJT_Trajectory *traj);
+float mj_get_acc(const struct  MJT_Trajectory *traj);
+
+int mj_is_finished(const struct MJT_Trajectory *traj);
+
+#endif /* INC_TRAJECTORY_H_ */

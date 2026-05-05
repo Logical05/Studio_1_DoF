@@ -1,0 +1,10 @@
+15:04:15 **** Build of configuration Debug for project DSP ****
+make -j16 all 
+arm-none-eabi-size  DSP.elf 
+   text	   data	    bss	    dec	    hex	filename
+   6640	     12	   1636	   8288	   2060	DSP.elf
+Finished building: default.size.stdout
+ 
+
+15:04:15 Build Finished. 0 errors, 0 warnings. (took 194ms)
+

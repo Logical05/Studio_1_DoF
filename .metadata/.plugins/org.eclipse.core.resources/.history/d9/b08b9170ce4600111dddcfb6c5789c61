@@ -1,0 +1,41 @@
+/*
+ * pid.h
+ *
+ *  Created on: May 3, 2026
+ *      Author: rajap
+ */
+
+#ifndef INC_PID_H_
+#define INC_PID_H_
+
+#include <math.h>
+#include <stdbool.h>
+
+enum Error_State {
+	NOW, LAST
+};
+
+struct PID_TypeDef {
+	float Kp;
+	float Ki;
+	float Kd;
+	float Error[2];
+
+	float P_out;
+	float I_out;
+	float D_out;
+	float Output;
+
+	float Max_Output;
+	float Integral_Limit;
+	bool Anti_Windup;
+};
+
+void PID_Init(struct PID_TypeDef *pid, float kp, float ki, float kd,
+		float max_output = INFINITY, bool anti_windup = false, float integral_limit = INFINITY);
+
+void PID_Reset(struct PID_TypeDef *pid, float kp, float ki, float kd);
+
+void PID_Calc(struct PID_TypeDef *pid, float setpoint, float process);
+
+#endif /* INC_PID_H_ */

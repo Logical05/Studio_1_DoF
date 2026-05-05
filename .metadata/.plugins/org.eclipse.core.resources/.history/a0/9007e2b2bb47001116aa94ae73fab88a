@@ -1,0 +1,28 @@
+/*
+ * useful.h
+ *
+ *  Created on: May 4, 2026
+ *      Author: rajap
+ */
+
+#ifndef SRC_USEFUL_H_
+#define SRC_USEFUL_H_
+
+#include "stm32g4xx_hal.h"
+#include <stdbool.h>
+
+struct DelayTimer {
+	uint32_t start;
+	uint32_t duration;
+	bool active;
+};
+
+static void Timer_Start(struct DelayTimer *t, uint32_t ms);
+
+static bool Timer_Expired(struct DelayTimer *t);
+static float map(float x, float in_min, float in_max, float out_min,
+		float out_max);
+static float clamp(float x, float min, float max);
+static void clamp_ptr(float *x, float min, float max);
+
+#endif /* SRC_USEFUL_H_ */

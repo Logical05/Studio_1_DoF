@@ -1,0 +1,18 @@
+/*
+ * Minimum Jerk Polynomial Trajectory
+ *
+ * trajectory.h
+ *
+ *  Created on: May 3, 2026
+ *      Author: rajap
+ */
+
+#ifndef INC_TRAJECTORY_H_
+#define INC_TRAJECTORY_H_
+
+// Single segment
+float MJT_Pos(float t, float T, float q0, float qf);
+float MJT_Vel(float t, float T, float q0, float qf);
+float MJPT_Acc(float t, float T, float q0, float qf);
+
+#endif /* INC_TRAJECTORY_H_ */

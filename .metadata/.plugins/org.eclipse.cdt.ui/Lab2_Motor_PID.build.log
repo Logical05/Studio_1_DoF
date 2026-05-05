@@ -1,0 +1,10 @@
+23:04:07 **** Incremental Build of configuration Debug for project Lab2_Motor_PID ****
+make -j16 all 
+arm-none-eabi-size  Lab2_Motor_PID.elf 
+   text	   data	    bss	    dec	    hex	filename
+  26784	     16	   2048	  28848	   70b0	Lab2_Motor_PID.elf
+Finished building: default.size.stdout
+ 
+
+23:04:07 Build Finished. 0 errors, 0 warnings. (took 345ms)
+

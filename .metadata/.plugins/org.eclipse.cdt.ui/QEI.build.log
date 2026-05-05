@@ -1,0 +1,10 @@
+04:35:43 **** Incremental Build of configuration Debug for project QEI ****
+make -j16 all 
+arm-none-eabi-size  QEI.elf 
+   text	   data	    bss	    dec	    hex	filename
+  17436	     16	   1928	  19380	   4bb4	QEI.elf
+Finished building: default.size.stdout
+ 
+
+04:35:44 Build Finished. 0 errors, 0 warnings. (took 268ms)
+

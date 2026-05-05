@@ -1,0 +1,16 @@
+../Core/Inc/useful.h:20:13:Timer_Start	16	static
+../Core/Inc/useful.h:26:13:Timer_Expired	16	static
+../Core/Inc/useful.h:38:14:map	32	static
+../Core/Inc/useful.h:43:14:clamp	24	static
+../Core/Inc/useful.h:51:14:clamp_max	16	static
+../Core/Src/trajectory.c:12:7:MJT_Pos	48	static
+../Core/Src/trajectory.c:23:7:MJT_Vel	40	static
+../Core/Src/trajectory.c:33:7:MJT_Acc	40	static
+../Core/Src/trajectory.c:44:6:MJT_Goal	24	static
+../Core/Src/trajectory.c:54:6:MJT_Update	24	static
+../Core/Src/trajectory.c:69:34:current_seg	16	static
+../Core/Src/trajectory.c:73:7:MJT_get_Pos	24	static
+../Core/Src/trajectory.c:78:7:MJT_get_Vel	24	static
+../Core/Src/trajectory.c:83:7:MJT_get_Acc	24	static
+../Core/Src/trajectory.c:88:6:MJI_Continue	16	static
+../Core/Src/trajectory.c:104:6:MJT_is_Finished	16	static

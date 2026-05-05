@@ -1,0 +1,8 @@
+Constrained Instances: 'GPM60GT3150-B-N12-1/GPM60GT3150-B-N12_b-1', 'GPM60GT3150-B-N12-2/GPM60GT3150-B-N12_b-1'
+Constraint Name: GearMate5
+Error Details: Constraint is not supported. The constraint has been exported as unknown constraint.
+---------------------------------------------------------------------------------
+Constrained Instances: 'HFZ20(CL)_body-1', 'HFZ20(CL)_body-1', 'HFZ20(CL)_fr-1', 'HFZ20(CL)_fr-1'
+Constraint Name: Width1
+Error Details: Constraint is not supported. The constraint has been ignored.
+---------------------------------------------------------------------------------

@@ -1,0 +1,16 @@
+/*
+ * useful.h
+ *
+ *  Created on: May 4, 2026
+ *      Author: rajap
+ */
+
+#ifndef SRC_USEFUL_H_
+#define SRC_USEFUL_H_
+
+long map(long x, long in_min, long in_max, long out_min, long out_max)
+{
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+#endif /* SRC_USEFUL_H_ */

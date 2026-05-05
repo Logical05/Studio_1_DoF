@@ -1,0 +1,10 @@
+15:57:35 **** Incremental Build of configuration Debug for project Clock ****
+make -j16 all 
+arm-none-eabi-size  Clock.elf 
+   text	   data	    bss	    dec	    hex	filename
+  26976	    104	   3064	  30144	   75c0	Clock.elf
+Finished building: default.size.stdout
+ 
+
+15:57:36 Build Finished. 0 errors, 0 warnings. (took 192ms)
+

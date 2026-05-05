@@ -1,0 +1,11 @@
+eclipse.preferences.version=1
+formatter_profile=org.eclipse.cdt.ui.default.kandr_profile
+formatter_settings_version=1
+formattingConfirmScopeForEmptySelection=false
+markOccurrences=false
+org.eclipse.cdt.ui.text.custom_code_templates=<?xml version\="1.0" encoding\="UTF-8" standalone\="no"?><templates/>
+sourceHoverBackgroundColor=47,47,47
+spelling_locale_initialized=true
+spelling_user_dictionary_encoding=
+useAnnotationsPrefPage=true
+useQuickDiffPrefPage=true
