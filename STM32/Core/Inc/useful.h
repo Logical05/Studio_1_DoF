@@ -11,6 +11,8 @@
 #include "stm32g4xx_hal.h"
 #include <stdbool.h>
 
+#define M_2PI 6.28318530717958647692
+
 struct DelayTimer {
 	uint32_t start;
 	uint32_t duration;

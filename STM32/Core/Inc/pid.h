@@ -12,7 +12,7 @@
 #include "useful.h"
 
 enum Error_State {
-	NOW, LAST
+	Error_NOW, Error_LAST
 };
 
 struct PID_TypeDef {

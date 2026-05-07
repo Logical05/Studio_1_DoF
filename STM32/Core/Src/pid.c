@@ -20,8 +20,8 @@ void PID_Reset(struct PID_TypeDef *pid, float kp, float ki, float kd) {
 	pid->kp = kp;
 	pid->ki = ki;
 	pid->kd = kd;
-	pid->error[NOW] = 0.0f;
-	pid->error[LAST] = 0.0f;
+	pid->error[Error_NOW] = 0.0f;
+	pid->error[Error_LAST] = 0.0f;
 
 	pid->p_out = 0.0f;
 	pid->i_out = 0.0f;
@@ -33,19 +33,20 @@ void PID_Reset(struct PID_TypeDef *pid, float kp, float ki, float kd) {
 }
 
 void PID_Calc(struct PID_TypeDef *pid, float setpoint, float process) {
-	pid->error[NOW] = setpoint - process;
+	pid->error[Error_NOW] = setpoint - process;
 
-	pid->p_out = pid->kp * pid->error[NOW];
-	pid->d_out = pid->kd * (pid->error[NOW] - pid->error[LAST]);
+	pid->p_out = pid->kp * pid->error[Error_NOW];
+	pid->d_out = pid->kd * (pid->error[Error_NOW] - pid->error[Error_LAST]);
 
 	// Integral Limit
-	pid->i_out += clamp_max(pid->ki * pid->error[NOW], pid->integral_limit);
+	pid->i_out = clamp_max(pid->i_out + (pid->ki * pid->error[Error_NOW]),
+			pid->integral_limit);
 
 	// Anti-Windup Clamp
 	bool positive = pid->output >= pid->max_output
-			&& pid->output * pid->error[NOW] > 0;
-	bool negative = pid->output <= pid->max_output
-			&& pid->output * pid->error[NOW] < 0;
+			&& pid->output * pid->error[Error_NOW] > 0;
+	bool negative = pid->output <= -pid->max_output
+			&& pid->output * pid->error[Error_NOW] < 0;
 	if (pid->anti_windup && (positive || negative)) {
 		pid->i_out = 0.0f;
 	}
@@ -53,5 +54,5 @@ void PID_Calc(struct PID_TypeDef *pid, float setpoint, float process) {
 	pid->output = clamp_max(pid->p_out + pid->i_out + pid->d_out,
 			pid->max_output);
 
-	pid->error[LAST] = pid->error[NOW];
+	pid->error[Error_LAST] = pid->error[Error_NOW];
 }

@@ -18,8 +18,9 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "tim.h"
+#include "dma.h"
 #include "usart.h"
+#include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -33,20 +34,24 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-enum QEIPos_State {
-	NEW, OLD
+enum QEI_State {
+	QEI_NOW, QEI_PREV
 };
 
 enum Motion_State {
 	Position, Velocity
 };
 
-enum Machine_State {
-	Idle, Moving
+enum Mode_State {
+	Mode_Manual, Mode_Auto
 };
 
-enum PickPlace_State {
-	Pick, Place
+enum Machine_State {
+	Machine_Idle, Machine_Moving
+};
+
+enum Gripper_State {
+	Gripper_Pick, Gripper_Place
 };
 
 struct Pinout_TypeDef {
@@ -63,12 +68,11 @@ struct PIN_TypeDef {
 };
 
 struct QEI_TypeDef {
-	uint32_t Position[2];
-	float QEIPostion_1turn;
-	float QEIAngularVelocity;
-	float QEIAngularVelocity_MWA;
-	float RPS;
-	float RPM;
+	uint32_t position[2];
+
+	float theta;	// [rad]
+	float omega;	// [rad/s]
+	float filter_omega;
 };
 
 /* USER CODE END PTD */
@@ -105,15 +109,19 @@ struct MJT_Trajectory traj = { 0 };
 float Reference[2] = { 0 };
 
 struct DelayTimer wait_timer;
-enum Machine_State state = Idle;
-enum PickPlace_State gripper = Place;
+enum Mode_State mode = Mode_Manual;
+enum Machine_State state = Machine_Idle;
+enum Gripper_State gripper = Gripper_Place;
+
 // TESTING
 bool EMERGENCY = true;
+float Voltage = 0.0f;
 GPIO_PinState relay = GPIO_PIN_RESET;
 GPIO_PinState reset = GPIO_PIN_RESET;
 GPIO_PinState prox = GPIO_PIN_RESET;
-struct MJT_Segment segs[] =
-		{ { -335.0f * M_PI / 180.0f, 2.0f }, { 0.0f, 2.0f } };
+struct MJT_Segment segs[] = { { -335.0f * M_PI / 180.0f, 20.0f },
+		{ 0.0f, 20.0f } };
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -159,10 +167,12 @@ int main(void) {
 
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
+	MX_DMA_Init();
 	MX_TIM16_Init();
 	MX_TIM6_Init();
 	MX_TIM8_Init();
 	MX_USART1_UART_Init();
+	MX_LPUART1_UART_Init();
 	/* USER CODE BEGIN 2 */
 	Init();
 	/* USER CODE END 2 */
@@ -173,29 +183,37 @@ int main(void) {
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
-		if (EMERGENCY) {
-			Break();
-			state = Idle;
-			continue;
-		}
-
-		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-
-		if (traj.state == MJT_WAIT) {
-			state = Idle;
-			PickPlace();
-		}
-
-		if (MJT_is_Finished(&traj)) {
-			state = Idle;
-			MJT_Goal(&traj, segs, 2);
-		}
-
 		// TESTING
 		relay = HAL_GPIO_ReadPin(GPIO.Relay_IN.GPIOx, GPIO.Relay_IN.GPIO_Pin);
 		reset = HAL_GPIO_ReadPin(GPIO.Reset_5W_IN.GPIOx,
 				GPIO.Reset_5W_IN.GPIO_Pin);
 		prox = HAL_GPIO_ReadPin(GPIO.PROX_IN.GPIOx, GPIO.PROX_IN.GPIO_Pin);
+
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, !prox);
+
+		if (EMERGENCY) {
+			Break();
+			state = Machine_Idle;
+			continue;
+		}
+
+//		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+
+		if (mode == Mode_Manual) {
+			Steerinng(Voltage);
+			continue;
+		}
+
+		if (traj.state == MJT_WAIT) {
+			state = Machine_Idle;
+			PickPlace();
+		}
+
+		if (MJT_is_Finished(&traj)) {
+			state = Machine_Idle;
+			MJT_Goal(&traj, segs, 2);
+		}
+
 	}
 	/* USER CODE END 3 */
 }
@@ -215,8 +233,11 @@ void SystemClock_Config(void) {
 	/** Initializes the RCC Oscillators according to the specified parameters
 	 * in the RCC_OscInitTypeDef structure.
 	 */
-	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI
+			| RCC_OSCILLATORTYPE_HSE;
 	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+	RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+	RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
 	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
 	RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV6;
@@ -254,40 +275,45 @@ void Init() {
 	HAL_TIM_PWM_Start(&htim16, TIM_CHANNEL_1);
 
 	// Outer loop (PI)
-	PID_Init(&PID_Pos, 13.249f, 3.059f, 0.0f, 5.31f, true, 0.8f); // Output: Velocity [rad/s]
+	PID_Init(&PID_Pos, 0.01f, 0.01f, 0.0f, 5.31f, true, 0.8f); // Output: Velocity [rad/s]
 
 	// Inner loop (PD)
-	PID_Init(&PID_Velo, 14.14f, 0.0f, 0.013f, 24.0f, false, 0.0f); // Output: Voltage [V]
+	PID_Init(&PID_Velo, 0.01f, 0.0f, 0.01f, 24.0f, false, 0.0f); // Output: Voltage [V]
 
 	// Trajectory
 	MJT_Goal(&traj, segs, 2);
 }
 
-void QEIEncoderPosVel_Update() {
-	//collect data
-	QEIdata.Position[NEW] = __HAL_TIM_GET_COUNTER(&htim8);
+void QEI_Update() {
+	// Collect data
+	QEIdata.position[QEI_NOW] = __HAL_TIM_GET_COUNTER(&htim8);
 
-	//Position 1 turn calculation
-	QEIdata.QEIPostion_1turn = QEIdata.Position[NEW] % ONE_TURN_QEI_CNT;
+	// Calculate diff (raw)
+	int32_t diff_position = QEIdata.position[QEI_NOW]
+			- QEIdata.position[QEI_PREV];
 
-	//calculate dx
-	int32_t diffPosition = QEIdata.Position[NEW] - QEIdata.Position[OLD];
+	// Handle wrap (ใช้ ONE_TURN)
+	if (diff_position > (MULTI_TURN_QEI_CNT / 2))
+		diff_position -= MULTI_TURN_QEI_CNT;
+	else if (diff_position < -(MULTI_TURN_QEI_CNT / 2))
+		diff_position += MULTI_TURN_QEI_CNT;
 
-	//Handle Warp around
-	if (diffPosition > (MULTI_TURN_QEI_CNT / 2))
-		diffPosition -= MULTI_TURN_QEI_CNT;
-	else if (diffPosition < -(MULTI_TURN_QEI_CNT / 2))
-		diffPosition += MULTI_TURN_QEI_CNT;
+	// Convert to rad
+	float diff_theta = (float) diff_position * (M_2PI / ONE_TURN_QEI_CNT);
 
-	//calculate angular velocity
-	QEIdata.QEIAngularVelocity = (float) diffPosition / OBSEVER_PERIOD;
-	QEIdata.QEIAngularVelocity_MWA = (QEIdata.QEIAngularVelocity
-			+ QEIdata.QEIAngularVelocity_MWA * 99) / 100.0;
-	QEIdata.RPS = QEIdata.QEIAngularVelocity_MWA / 840.0f;
-	QEIdata.RPM = QEIdata.RPS * 60.0f;
+	// Integrate position
+	QEIdata.theta += diff_theta;
 
-	//store value for next loop
-	QEIdata.Position[OLD] = QEIdata.Position[NEW];
+	// Velocity (rad/s)
+	QEIdata.omega = diff_theta / OBSEVER_PERIOD;
+
+	// Low-pass filter
+	float alpha = 0.05f;
+	QEIdata.filter_omega = alpha * QEIdata.omega
+			+ (1.0f - alpha) * QEIdata.filter_omega;
+
+	// Store for next loop
+	QEIdata.position[QEI_PREV] = QEIdata.position[QEI_NOW];
 }
 
 void Break() {
@@ -309,22 +335,23 @@ void Steerinng(float voltage) {
 		HAL_GPIO_WritePin(GPIO.Motor_DIR.GPIOx, GPIO.Motor_DIR.GPIO_Pin,
 				GPIO_PIN_SET);
 	}
-	uint16_t counter = (uint16_t) (MIN(fabsf(voltage), 100));
+
+	uint16_t counter = (uint16_t) map(fabsf(voltage), 0.0f, 24.0f, 0, 100);
 	__HAL_TIM_SET_COMPARE(&htim16, TIM_CHANNEL_1, counter);
 }
 
 void PickPlace() {
 	if (Timer_Expired(&wait_timer)) {
 		MJI_Continue(&traj);
-		state = Moving;
+		state = Machine_Moving;
 		return;
 	}
 
 	if (!wait_timer.active) {
-		if (gripper == Place) {
-			gripper = Pick;
-		} else if (gripper == Pick) {
-			gripper = Place;
+		if (gripper == Gripper_Place) {
+			gripper = Gripper_Pick;
+		} else if (gripper == Gripper_Pick) {
+			gripper = Gripper_Place;
 		}
 		Timer_Start(&wait_timer, 3000); // wait 3 sec
 	}
@@ -332,11 +359,11 @@ void PickPlace() {
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim->Instance == TIM6) {
-		QEIEncoderPosVel_Update();
+		QEI_Update();
 
 		/* ---- Trajectory ---- */
 
-		if (state == Moving) {
+		if (state == Machine_Moving) {
 			MJT_Update(&traj, OBSEVER_PERIOD);
 			Reference[Position] = MJT_get_Pos(&traj);
 			Reference[Velocity] = MJT_get_Vel(&traj);
@@ -347,19 +374,19 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			return;
 
 		// Position Control
-		PID_Calc(&PID_Pos, Reference[Position], QEIdata.QEIPostion_1turn);
+		PID_Calc(&PID_Pos, Reference[Position], QEIdata.theta);
 
 		// Velocity Control
 		PID_Calc(&PID_Velo, PID_Pos.output + Reference[Velocity],
-				QEIdata.QEIAngularVelocity_MWA);
+				QEIdata.filter_omega);
 
 		Steerinng(PID_Velo.output);
 	}
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-	if (GPIO_Pin == GPIO_PIN_13) {
-		state = Moving;
+	if (GPIO_Pin == GPIO_PIN_13 && mode == Mode_Auto) {
+		state = Machine_Moving;
 	}
 }
 /* USER CODE END 4 */
