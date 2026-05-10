@@ -65,7 +65,7 @@ void MX_GPIO_Init(void)
   /*Configure GPIO pins : PROX_IN_Pin RESET_5W_IN_Pin RELAY_IN_Pin */
   GPIO_InitStruct.Pin = PROX_IN_Pin|RESET_5W_IN_Pin|RELAY_IN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LD2_Pin */
@@ -85,7 +85,7 @@ void MX_GPIO_Init(void)
   /*Configure GPIO pin : SSR_TRIG_Pin */
   GPIO_InitStruct.Pin = SSR_TRIG_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(SSR_TRIG_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/

@@ -27,6 +27,7 @@ voltage_24V = data_24V.Voltage(1);
 % Motor Parameter
 motor_R = 9.047391929;     % [ohm]
 motor_L = 0.001741906;     % [H]
-motor_K = 2.2321;    % [N * m/A]
-motor_B = 0.78891;    % [N * m * S/rad]
-motor_J = 0.029842;    % [kg * m^2]
+motor_K = 1;     % [V * S/rad]
+motor_B = 0.1;     % [N * m * S/rad]
+motor_J = 0.0001;        % [kg * m^2]
+

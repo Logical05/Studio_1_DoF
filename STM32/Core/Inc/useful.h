@@ -13,19 +13,19 @@
 
 #define M_2PI 6.28318530717958647692
 
-struct DelayTimer {
+typedef struct {
 	uint32_t start;
 	uint32_t duration;
 	bool active;
-};
+} DelayTimer;
 
-static void Timer_Start(struct DelayTimer *t, uint32_t ms) {
+static void Timer_Start(DelayTimer *t, uint32_t ms) {
 	t->start = HAL_GetTick();
 	t->duration = ms;
 	t->active = true;
 }
 
-static bool Timer_Expired(struct DelayTimer *t) {
+static bool Timer_Expired(DelayTimer *t) {
 	if (!t->active)
 		return false;
 

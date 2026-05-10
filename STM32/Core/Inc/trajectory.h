@@ -1,10 +1,9 @@
 /*
- * Minimum Jerk Polynomial Trajectory
- *
  * trajectory.h
  *
- *  Created on: May 3, 2026
- *      Author: rajap
+ * Minimum Jerk Trajectory
+ *
+ * Auto calculate segment time from vmax
  */
 
 #ifndef INC_TRAJECTORY_H_
@@ -13,40 +12,61 @@
 #include <stdbool.h>
 #include "useful.h"
 
-enum MJT_State {
+typedef enum {
 	MJT_RUN, MJT_WAIT, MJT_DONE
-};
+} MJT_State;
 
-struct MJT_Segment {
-	float qf;
-	float T;
-};
+/*
+ * Trajectory Object
+ */
+typedef struct {
 
-struct MJT_Trajectory {
-	const struct MJT_Segment *segments;
-	int num_segments;
-	enum MJT_State state;
+	const float *points;
+
+	int num_points;
+
+	MJT_State state;
 
 	int current;
-	float q0;
-	float t;     // local time in segment
-};
 
-// Single segment
+	float q0;
+	float qf;
+
+	float vmax;
+
+	float T;
+
+	float t;
+
+} MJT_Trajectory;
+
+/* ============================================================
+ * Single Segment
+ * ============================================================ */
+
 float MJT_Pos(float t, float T, float q0, float qf);
+
 float MJT_Vel(float t, float T, float q0, float qf);
+
 float MJT_Acc(float t, float T, float q0, float qf);
 
-// ===== Multi segment =====
-void MJT_Goal(struct MJT_Trajectory *traj, const struct MJT_Segment *segments,
-		int num_segments);
-void MJT_Update(struct MJT_Trajectory *traj, float dt);
+/* ============================================================
+ * Multi Segment
+ * ============================================================ */
 
-float MJT_get_Pos(const struct MJT_Trajectory *traj);
-float MJT_get_Vel(const struct MJT_Trajectory *traj);
-float MJT_get_Acc(const struct MJT_Trajectory *traj);
+void MJT_Goal(MJT_Trajectory *traj, const float *points, int num_points,
+		float q_start, float vmax);
 
-void MJI_Continue(struct MJT_Trajectory *traj);
-bool MJT_is_Finished(const struct MJT_Trajectory *traj);
+void MJT_Update(MJT_Trajectory *traj, float dt);
 
-#endif /* INC_TRAJECTORY_H_ */
+void MJT_Continue(MJT_Trajectory *traj);
+
+float MJT_get_Pos(const MJT_Trajectory *traj);
+
+float MJT_get_Vel(const MJT_Trajectory *traj);
+
+float MJT_get_Acc(const MJT_Trajectory *traj);
+
+bool MJT_is_Finished(const MJT_Trajectory *traj);
+
+#endif

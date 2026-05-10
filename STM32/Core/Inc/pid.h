@@ -11,11 +11,11 @@
 #include <stdbool.h>
 #include "useful.h"
 
-enum Error_State {
+typedef enum {
 	Error_NOW, Error_LAST
-};
+} Error_State;
 
-struct PID_TypeDef {
+typedef struct {
 	float kp;
 	float ki;
 	float kd;
@@ -29,13 +29,13 @@ struct PID_TypeDef {
 	float max_output;
 	float integral_limit;
 	bool anti_windup;
-};
+} PID_TypeDef;
 
-void PID_Init(struct PID_TypeDef *pid, float kp, float ki, float kd,
-		float max_output, bool anti_windup, float integral_limit);
+void PID_Init(PID_TypeDef *pid, float kp, float ki, float kd, float max_output,
+bool anti_windup, float integral_limit);
 
-void PID_Reset(struct PID_TypeDef *pid, float kp, float ki, float kd);
+void PID_Reset(PID_TypeDef *pid, float kp, float ki, float kd);
 
-void PID_Calc(struct PID_TypeDef *pid, float setpoint, float process);
+void PID_Calc(PID_TypeDef *pid, float setpoint, float process);
 
 #endif /* INC_PID_H_ */

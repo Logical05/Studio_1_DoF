@@ -30,50 +30,51 @@
 #include "pid.h"
 #include "trajectory.h"
 #include "useful.h"
+#include "kalman.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-enum QEI_State {
+typedef enum {
 	QEI_NOW, QEI_PREV
-};
+} QEI_State;
 
-enum Motion_State {
+typedef enum {
 	Position, Velocity
-};
+} Motion_State;
 
-enum Mode_State {
+typedef enum {
 	Mode_Manual, Mode_Auto
-};
+} Mode_State;
 
-enum Machine_State {
+typedef enum {
 	Machine_Idle, Machine_Moving
-};
+} Machine_State;
 
-enum Gripper_State {
+typedef enum {
 	Gripper_Pick, Gripper_Place
-};
+} Gripper_State;
 
-struct Pinout_TypeDef {
+typedef struct {
 	GPIO_TypeDef *GPIOx;
 	uint16_t GPIO_Pin;
-};
+} Pinout_TypeDef;
 
-struct PIN_TypeDef {
-	struct Pinout_TypeDef SSR_TRIG;
-	struct Pinout_TypeDef Motor_DIR;
-	struct Pinout_TypeDef Relay_IN;
-	struct Pinout_TypeDef Reset_5W_IN;
-	struct Pinout_TypeDef PROX_IN;
-};
+typedef struct {
+	Pinout_TypeDef SSR_TRIG;
+	Pinout_TypeDef Motor_DIR;
+	Pinout_TypeDef Relay_IN;
+	Pinout_TypeDef Reset_5W_IN;
+	Pinout_TypeDef PROX_IN;
+} PIN_TypeDef;
 
-struct QEI_TypeDef {
+typedef struct {
 	uint32_t position[2];
 
 	float theta;	// [rad]
 	float omega;	// [rad/s]
 	float filter_omega;
-};
+} QEI_TypeDef;
 
 /* USER CODE END PTD */
 
@@ -96,22 +97,22 @@ struct QEI_TypeDef {
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-const struct PIN_TypeDef GPIO = { { GPIOA, GPIO_PIN_15 },
-		{ GPIOB, GPIO_PIN_11 }, {
-		GPIOC, GPIO_PIN_12 }, { GPIOC, GPIO_PIN_11 }, { GPIOC, GPIO_PIN_3 }, };
+const PIN_TypeDef GPIO = { { GPIOA, GPIO_PIN_15 }, { GPIOB, GPIO_PIN_11 }, {
+GPIOC, GPIO_PIN_12 }, { GPIOC, GPIO_PIN_11 }, { GPIOC, GPIO_PIN_3 }, };
 
-struct QEI_TypeDef QEIdata = { 0 };
+QEI_TypeDef QEIdata = { 0 };
+KF_TypeDef kf;
 
-struct PID_TypeDef PID_Pos = { 0 };
-struct PID_TypeDef PID_Velo = { 0 };
+PID_TypeDef PD_Pos = { 0 };
+PID_TypeDef PI_Velo = { 0 };
 
-struct MJT_Trajectory traj = { 0 };
+MJT_Trajectory traj = { 0 };
 float Reference[2] = { 0 };
 
-struct DelayTimer wait_timer;
-enum Mode_State mode = Mode_Manual;
-enum Machine_State state = Machine_Idle;
-enum Gripper_State gripper = Gripper_Place;
+DelayTimer wait_timer;
+Mode_State mode = Mode_Manual;
+Machine_State state = Machine_Idle;
+Gripper_State gripper = Gripper_Place;
 
 // TESTING
 bool EMERGENCY = true;
@@ -119,9 +120,9 @@ float Voltage = 0.0f;
 GPIO_PinState relay = GPIO_PIN_RESET;
 GPIO_PinState reset = GPIO_PIN_RESET;
 GPIO_PinState prox = GPIO_PIN_RESET;
-struct MJT_Segment segs[] = { { -335.0f * M_PI / 180.0f, 20.0f },
-		{ 0.0f, 20.0f } };
-
+float points[] = { { -355.0f * M_PI / 180.0f }, { 0.0f } };
+float KF_Q = 1e-3f;
+float VMAX = 2.655f;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -173,6 +174,8 @@ int main(void) {
 	MX_TIM8_Init();
 	MX_USART1_UART_Init();
 	MX_LPUART1_UART_Init();
+	MX_TIM7_Init();
+	MX_TIM17_Init();
 	/* USER CODE BEGIN 2 */
 	Init();
 	/* USER CODE END 2 */
@@ -189,15 +192,13 @@ int main(void) {
 				GPIO.Reset_5W_IN.GPIO_Pin);
 		prox = HAL_GPIO_ReadPin(GPIO.PROX_IN.GPIOx, GPIO.PROX_IN.GPIO_Pin);
 
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, !prox);
-
 		if (EMERGENCY) {
 			Break();
 			state = Machine_Idle;
 			continue;
 		}
 
-//		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
 
 		if (mode == Mode_Manual) {
 			Steerinng(Voltage);
@@ -211,7 +212,7 @@ int main(void) {
 
 		if (MJT_is_Finished(&traj)) {
 			state = Machine_Idle;
-			MJT_Goal(&traj, segs, 2);
+			MJT_Goal(&traj, points, 2, 0.0f, VMAX);
 		}
 
 	}
@@ -266,53 +267,70 @@ void SystemClock_Config(void) {
 /* USER CODE BEGIN 4 */
 void Init() {
 	Break();
+
 	HAL_GPIO_WritePin(GPIO.SSR_TRIG.GPIOx, GPIO.SSR_TRIG.GPIO_Pin,
 			GPIO_PIN_RESET);
 
 	HAL_TIM_Encoder_Start(&htim8, TIM_CHANNEL_ALL);
 	HAL_TIM_Base_Start_IT(&htim6);
+	HAL_TIM_Base_Start_IT(&htim17);
+	HAL_TIM_Base_Start_IT(&htim7);
 
 	HAL_TIM_PWM_Start(&htim16, TIM_CHANNEL_1);
 
-	// Outer loop (PI)
-	PID_Init(&PID_Pos, 0.01f, 0.01f, 0.0f, 5.31f, true, 0.8f); // Output: Velocity [rad/s]
+	// Outer loop: position → velocity reference  (PD)
+	PID_Init(&PD_Pos, 3.0f, 0.0f, 0.12f, 5.31f, false, 0.0f);
 
-	// Inner loop (PD)
-	PID_Init(&PID_Velo, 0.01f, 0.0f, 0.01f, 24.0f, false, 0.0f); // Output: Voltage [V]
+	// Inner loop: velocity → voltage             (PI)
+	PID_Init(&PI_Velo, 6.7f, 0.093f, 0.0f, 24.0f, true, 12.0f);
 
 	// Trajectory
-	MJT_Goal(&traj, segs, 2);
+	MJT_Goal(&traj, points, 2, 0.0f, VMAX);
+
+	// Kalman filter — motor physical parameters
+	KF_DCMotor_Init(&kf, OBSEVER_PERIOD,     // dt
+			0.029842f,      // J
+			0.78891f,       // B
+			2.2321f,        // Kt
+			2.2321f,        // Ke
+			9.0473919f,     // Rm
+			0.0017419f,     // L
+			KF_Q,            // Q
+			5e-5f        // R
+			);
 }
 
 void QEI_Update() {
-	// Collect data
+	/* ---- Read encoder ---- */
 	QEIdata.position[QEI_NOW] = __HAL_TIM_GET_COUNTER(&htim8);
 
-	// Calculate diff (raw)
-	int32_t diff_position = QEIdata.position[QEI_NOW]
-			- QEIdata.position[QEI_PREV];
+	/* ---- Differential position (handle 16-bit / multi-turn wrap) ---- */
+	int32_t diff_position = (int32_t) QEIdata.position[QEI_NOW]
+			- (int32_t) QEIdata.position[QEI_PREV];
 
-	// Handle wrap (ใช้ ONE_TURN)
 	if (diff_position > (MULTI_TURN_QEI_CNT / 2))
 		diff_position -= MULTI_TURN_QEI_CNT;
 	else if (diff_position < -(MULTI_TURN_QEI_CNT / 2))
 		diff_position += MULTI_TURN_QEI_CNT;
 
-	// Convert to rad
+	/* ---- Convert to radians ---- */
 	float diff_theta = (float) diff_position * (M_2PI / ONE_TURN_QEI_CNT);
 
-	// Integrate position
+	/* ---- Integrate position ---- */
 	QEIdata.theta += diff_theta;
 
-	// Velocity (rad/s)
+	/* ---- Raw velocity ---- */
 	QEIdata.omega = diff_theta / OBSEVER_PERIOD;
 
-	// Low-pass filter
-	float alpha = 0.05f;
-	QEIdata.filter_omega = alpha * QEIdata.omega
-			+ (1.0f - alpha) * QEIdata.filter_omega;
+	/* ---- Kalman filter ---- */
+	KF_SetQ(&kf, KF_Q, KF_Q * 10, KF_Q * 10, KF_Q * 100); /* allow runtime Q tuning */
+	KF_Predict(&kf, PI_Velo.output);
+	KF_Update(&kf, QEIdata.theta);
 
-	// Store for next loop
+	/* Kalman-estimated velocity used by the velocity PID */
+	QEIdata.filter_omega = kf.x[1];
+
+	/* ---- Store for next cycle ---- */
 	QEIdata.position[QEI_PREV] = QEIdata.position[QEI_NOW];
 }
 
@@ -323,18 +341,13 @@ void Break() {
 }
 
 void Steerinng(float voltage) {
-	if (INRANGE(voltage, 0.01f)) {
+	if (voltage == 0.0f) {
 		Break();
 		return;
 	}
 
-	if (voltage > 0) {
-		HAL_GPIO_WritePin(GPIO.Motor_DIR.GPIOx, GPIO.Motor_DIR.GPIO_Pin,
-				GPIO_PIN_RESET);
-	} else {
-		HAL_GPIO_WritePin(GPIO.Motor_DIR.GPIOx, GPIO.Motor_DIR.GPIO_Pin,
-				GPIO_PIN_SET);
-	}
+	HAL_GPIO_WritePin(GPIO.Motor_DIR.GPIOx, GPIO.Motor_DIR.GPIO_Pin,
+			voltage > 0 ? GPIO_PIN_RESET : GPIO_PIN_SET);
 
 	uint16_t counter = (uint16_t) map(fabsf(voltage), 0.0f, 24.0f, 0, 100);
 	__HAL_TIM_SET_COMPARE(&htim16, TIM_CHANNEL_1, counter);
@@ -342,7 +355,7 @@ void Steerinng(float voltage) {
 
 void PickPlace() {
 	if (Timer_Expired(&wait_timer)) {
-		MJI_Continue(&traj);
+		MJT_Continue(&traj);
 		state = Machine_Moving;
 		return;
 	}
@@ -357,30 +370,43 @@ void PickPlace() {
 	}
 }
 
+/* ------------------------------------------------------------------
+ * TIM6  interrupt — 5 kHz Observer loop
+ * TIM7  interrupt — 1 kHz Position loop
+ * TIM17 interrupt — 2 kHz Velocity loop
+ * ------------------------------------------------------------------ */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim->Instance == TIM6) {
+		/* Read encoder, run Kalman predict + update */
 		QEI_Update();
-
-		/* ---- Trajectory ---- */
-
+	}
+	if (htim->Instance == TIM7) {
+		/* Trajectory */
 		if (state == Machine_Moving) {
-			MJT_Update(&traj, OBSEVER_PERIOD);
+			MJT_Update(&traj, 0.001);
 			Reference[Position] = MJT_get_Pos(&traj);
 			Reference[Velocity] = MJT_get_Vel(&traj);
 		}
 
-		/* ---- Cascade Control ---- */
-		if (EMERGENCY)
-			return;
-
-		// Position Control
-		PID_Calc(&PID_Pos, Reference[Position], QEIdata.theta);
-
-		// Velocity Control
-		PID_Calc(&PID_Velo, PID_Pos.output + Reference[Velocity],
+		/* Outer: position → velocity setpoint */
+		PID_Calc(&PD_Pos, Reference[Position], QEIdata.theta);
+	}
+	if (htim->Instance == TIM17) {
+		/* Inner: velocity → voltage */
+		PID_Calc(&PI_Velo, PD_Pos.output + Reference[Velocity],
 				QEIdata.filter_omega);
 
-		Steerinng(PID_Velo.output);
+		/* Deadband Motor */
+		if (INRANGE(PI_Velo.output, 0.05f)) {
+			PI_Velo.output = 0.0f;
+		}
+
+		/* Cascade PID + output */
+		if (EMERGENCY || mode == Mode_Manual)
+			return;
+
+		/* Drive motor with computed voltage */
+		Steerinng(PI_Velo.output);
 	}
 }
 

@@ -1,13 +1,32 @@
 /*
  * trajectory.c
  *
- *  Created on: May 3, 2026
- *      Author: rajap
+ * Minimum Jerk Trajectory
  */
 
 #include "trajectory.h"
 
-/* ---- Single segment ---- */
+#include <math.h>
+
+/*
+ * Fastest possible time
+ *
+ * vmax = 1.875 dq / T
+ *
+ * T = 1.875 dq / vmax
+ */
+static float calc_time(float q0, float qf, float vmax) {
+	float dq = fabsf(qf - q0);
+
+	if (vmax <= 0.0f)
+		return 1.0f;
+
+	return 1.875f * dq / vmax;
+}
+
+/* ============================================================
+ * Single Segment
+ * ============================================================ */
 
 float MJT_Pos(float t, float T, float q0, float qf) {
 	float tau = clamp(t / T, 0.0f, 1.0f);
@@ -39,70 +58,85 @@ float MJT_Acc(float t, float T, float q0, float qf) {
 	return (qf - q0) * (60.0f * tau - 180.0f * t2 + 120.0f * t3) / (T * T);
 }
 
-/* ---- Multi segment ---- */
+/* ============================================================
+ * Internal
+ * ============================================================ */
 
-void MJT_Goal(struct MJT_Trajectory *traj, const struct MJT_Segment *segments,
-		int num_segments) {
-	traj->segments = segments;
-	traj->num_segments = num_segments;
-	traj->state = MJT_RUN;
-	traj->current = 0;
-	traj->q0 = 0.0f;
+static void load_segment(MJT_Trajectory *traj) {
+	traj->qf = traj->points[traj->current];
+
+	traj->T = calc_time(traj->q0, traj->qf, traj->vmax);
+
 	traj->t = 0.0f;
 }
 
-void MJT_Update(struct MJT_Trajectory *traj, float dt) {
+/* ============================================================
+ * Multi Segment
+ * ============================================================ */
+
+void MJT_Goal(MJT_Trajectory *traj, const float *points, int num_points,
+		float q_start, float vmax) {
+	traj->points = points;
+
+	traj->num_points = num_points;
+
+	traj->state = MJT_RUN;
+
+	traj->current = 0;
+
+	traj->q0 = q_start;
+
+	traj->vmax = vmax;
+
+	load_segment(traj);
+}
+
+void MJT_Update(MJT_Trajectory *traj, float dt) {
 	if (traj->state != MJT_RUN)
 		return;
 
-	const struct MJT_Segment *seg = &traj->segments[traj->current];
-
 	traj->t += dt;
 
-	if (traj->t >= seg->T) {
-		traj->t = seg->T;
-		traj->q0 = seg->qf;
+	if (traj->t >= traj->T) {
+		traj->t = traj->T;
+
+		traj->q0 = traj->qf;
+
 		traj->state = MJT_WAIT;
 	}
 }
 
-static const struct MJT_Segment* current_seg(const struct MJT_Trajectory *traj) {
-	return &traj->segments[traj->current];
-}
-
-float MJT_get_Pos(const struct MJT_Trajectory *traj) {
-	const struct MJT_Segment *s = current_seg(traj);
-	return MJT_Pos(traj->t, s->T, traj->q0, s->qf);
-}
-
-float MJT_get_Vel(const struct MJT_Trajectory *traj) {
-	const struct MJT_Segment *s = current_seg(traj);
-	return MJT_Vel(traj->t, s->T, traj->q0, s->qf);
-}
-
-float MJT_get_Acc(const struct MJT_Trajectory *traj) {
-	const struct MJT_Segment *s = current_seg(traj);
-	return MJT_Acc(traj->t, s->T, traj->q0, s->qf);
-}
-
-void MJI_Continue(struct MJT_Trajectory *traj) {
+void MJT_Continue(MJT_Trajectory *traj) {
 	if (traj->state != MJT_WAIT)
 		return;
 
 	traj->current++;
 
-	if (traj->current >= traj->num_segments) {
+	if (traj->current >= traj->num_points) {
+		traj->current = traj->num_points - 1;
+
 		traj->state = MJT_DONE;
-		traj->current = traj->num_segments - 1;
+
 		return;
 	}
 
-	traj->t = 0.0f;
+	load_segment(traj);
+
 	traj->state = MJT_RUN;
 }
 
-bool MJT_is_Finished(const struct MJT_Trajectory *traj) {
-	return (traj->current == traj->num_segments - 1)
-			&& (traj->t >= traj->segments[traj->current].T)
-			&& traj->state == MJT_DONE;
+float MJT_get_Pos(const MJT_Trajectory *traj) {
+	return MJT_Pos(traj->t, traj->T, traj->q0, traj->qf);
+}
+
+float MJT_get_Vel(const MJT_Trajectory *traj) {
+	return MJT_Vel(traj->t, traj->T, traj->q0, traj->qf);
+}
+
+float MJT_get_Acc(const MJT_Trajectory *traj) {
+	return MJT_Acc(traj->t, traj->T, traj->q0, traj->qf);
+}
+
+bool MJT_is_Finished(const MJT_Trajectory *traj) {
+	return traj->state == MJT_DONE;
 }

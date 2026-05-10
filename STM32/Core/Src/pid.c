@@ -7,8 +7,8 @@
 
 #include "pid.h"
 
-void PID_Init(struct PID_TypeDef *pid, float kp, float ki, float kd,
-		float max_output, bool anti_windup, float integral_limit) {
+void PID_Init(PID_TypeDef *pid, float kp, float ki, float kd, float max_output,
+bool anti_windup, float integral_limit) {
 	pid->max_output = max_output;
 	pid->integral_limit = integral_limit;
 	pid->anti_windup = anti_windup;
@@ -16,7 +16,7 @@ void PID_Init(struct PID_TypeDef *pid, float kp, float ki, float kd,
 	PID_Reset(pid, kp, ki, kd);
 }
 
-void PID_Reset(struct PID_TypeDef *pid, float kp, float ki, float kd) {
+void PID_Reset(PID_TypeDef *pid, float kp, float ki, float kd) {
 	pid->kp = kp;
 	pid->ki = ki;
 	pid->kd = kd;
@@ -32,7 +32,7 @@ void PID_Reset(struct PID_TypeDef *pid, float kp, float ki, float kd) {
 		pid->anti_windup = false;
 }
 
-void PID_Calc(struct PID_TypeDef *pid, float setpoint, float process) {
+void PID_Calc(PID_TypeDef *pid, float setpoint, float process) {
 	pid->error[Error_NOW] = setpoint - process;
 
 	pid->p_out = pid->kp * pid->error[Error_NOW];
