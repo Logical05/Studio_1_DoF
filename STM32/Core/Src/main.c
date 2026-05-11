@@ -120,9 +120,9 @@ float Voltage = 0.0f;
 GPIO_PinState relay = GPIO_PIN_RESET;
 GPIO_PinState reset = GPIO_PIN_RESET;
 GPIO_PinState prox = GPIO_PIN_RESET;
-float points[] = { { -355.0f * M_PI / 180.0f }, { 0.0f } };
+float points[] = { { 355.0f * M_PI / 180.0f }, { 0.0f } };
 float KF_Q = 1e-3f;
-float VMAX = 2.655f;
+float VMAX = 5.31f;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -283,6 +283,12 @@ void Init() {
 
 	// Inner loop: velocity → voltage             (PI)
 	PID_Init(&PI_Velo, 6.7f, 0.093f, 0.0f, 24.0f, true, 12.0f);
+
+//	// Outer loop: position → velocity reference  (PD)
+//	PID_Init(&PD_Pos, 0.5f, 0.0f, 0.36f, 5.31f, false, 0.0f);
+//
+//	// Inner loop: velocity → voltage             (PI)
+//	PID_Init(&PI_Velo, 7.2f, 0.12f, 0.0f, 24.0f, true, 12.0f);
 
 	// Trajectory
 	MJT_Goal(&traj, points, 2, 0.0f, VMAX);
