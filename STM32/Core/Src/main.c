@@ -120,7 +120,7 @@ float Voltage = 0.0f;
 GPIO_PinState relay = GPIO_PIN_RESET;
 GPIO_PinState reset = GPIO_PIN_RESET;
 GPIO_PinState prox = GPIO_PIN_RESET;
-float points[] = { { 355.0f * M_PI / 180.0f }, { 0.0f } };
+float points[2] = { { 355.0f * M_PI / 180.0f }, { 0.0f } };
 float KF_Q = 1e-3f;
 float VMAX = 5.31f;
 /* USER CODE END PV */
