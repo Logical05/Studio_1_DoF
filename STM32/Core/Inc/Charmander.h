@@ -13,6 +13,80 @@
 
 #include <stdint.h>
 
+typedef enum {
+	CHARMANDER_HB_WAITING, CHARMANDER_HB_ALIVE, CHARMANDER_HB_DEAD
+} CharmanderHeartbeatState_t;
+
+typedef enum {
+	CHARMANDER_MODE_IDLE,
+	CHARMANDER_MODE_HOME,
+	CHARMANDER_MODE_JOG,
+	CHARMANDER_MODE_AUTO,
+	CHARMANDER_MODE_P2P,
+	CHARMANDER_MODE_SET_HOME,
+	CHARMANDER_MODE_TEST
+} CharmanderMode_t;
+
+typedef enum {
+	CHARMANDER_VERTICAL_IDLE, CHARMANDER_VERTICAL_UP, CHARMANDER_VERTICAL_DOWN
+} CharmanderVerticalState_t;
+
+typedef enum {
+	CHARMANDER_JAW_IDLE, CHARMANDER_JAW_OPEN, CHARMANDER_JAW_CLOSE
+} CharmanderJawState_t;
+
+typedef enum {
+	CHARMANDER_SEQ_NONE, CHARMANDER_SEQ_PICK, CHARMANDER_SEQ_PLACE
+} CharmanderSequence_t;
+
+typedef enum {
+	CHARMANDER_DISABLE, CHARMANDER_ENABLE
+} CharmanderEnable_t;
+
+typedef enum {
+	CHARMANDER_JOG_NONE, CHARMANDER_JOG_CW, CHARMANDER_JOG_CCW
+} CharmanderJogDir_t;
+
+typedef enum {
+	CHARMANDER_TEST_PRECISION, CHARMANDER_TEST_PERFORMANCE
+} CharmanderTestType_t;
+
+typedef enum {
+	CHARMANDER_UNIT_DEGREE, CHARMANDER_UNIT_INDEX
+} CharmanderUnit_t;
+
+typedef enum {
+	CHARMANDER_STOP_RUNNING, CHARMANDER_STOP_ACTIVE
+} CharmanderSoftStop_t;
+
+typedef enum {
+	CHARMANDER_SENSOR_IDLE, CHARMANDER_SENSOR_UP, CHARMANDER_SENSOR_DOWN
+} CharmanderSensorVertical_t;
+
+typedef enum {
+	CHARMANDER_SENSOR_OPEN, CHARMANDER_SENSOR_CLOSED
+} CharmanderSensorJaw_t;
+
+typedef enum {
+	CHARMANDER_TASK_IDLE,
+	CHARMANDER_TASK_HOMING,
+	CHARMANDER_TASK_GO_PICK,
+	CHARMANDER_TASK_GO_PLACE,
+	CHARMANDER_TASK_GO_POINT
+} CharmanderTask_t;
+
+typedef enum {
+	CHARMANDER_EMERGENCY_NORMAL, CHARMANDER_EMERGENCY_ACTIVE
+} CharmanderEmergency_t;
+
+typedef enum {
+	CHARMANDER_TX_IDLE, CHARMANDER_TX_SENT
+} CharmanderTxStatus_t;
+
+typedef enum {
+	CHARMANDER_RX_NO_REPLY, CHARMANDER_RX_GOT_HI, CHARMANDER_RX_BAD_VALUE
+} CharmanderRxStatus_t;
+
 /* ─── Configuration ─────────────────────────────────────────────── */
 #define CHARMANDER_SLAVE_ADDR        21      /* Default slave address (0x15) */
 #define CHARMANDER_FC_WRITE          0x06    /* Write Single Register          */
@@ -20,7 +94,6 @@
 #define CHARMANDER_WRITE_FRAME_SIZE  8       /* FC06 frame is always 8 bytes   */
 #define CHARMANDER_READ_REQ_SIZE     8       /* FC03 request is always 8 bytes */
 #define CHARMANDER_RX_BUF_SIZE       64      /* Ring buffer size (power of 2)  */
-#define CHARMANDER_LABEL_LEN         10
 
 /* ─── Heartbeat magic values ────────────────────────────────────── */
 #define CHARMANDER_HB_YA             22881   /* 0x5941 "YA" — Robot → PC (sent on read 0x00) */
@@ -47,32 +120,31 @@ typedef struct {
 	 * ──────────────────────────────────────────────────────────── */
 
 	/* 0x00  Heartbeat */
-	char heartbeat[CHARMANDER_LABEL_LEN]; /* "ALIVE" | "WAITING" | "DEAD" */
+	CharmanderHeartbeatState_t heartbeat; /* "ALIVE" | "WAITING" | "DEAD" */
 
 	/* 0x01  Operating mode */
-	char mode[CHARMANDER_LABEL_LEN]; /* "HOME" | "JOG" | "AUTO" | "SET_HOME" | "TEST" | "IDLE" */
+	CharmanderMode_t mode; /* "HOME" | "JOG" | "AUTO" | "SET_HOME" | "TEST" | "IDLE" */
 	uint16_t mode_raw;
 
 	/* 0x02  Manual gripper */
-	char gripper_vertical[CHARMANDER_LABEL_LEN]; /* "UP" | "DOWN" | "IDLE" */
-	char gripper_jaw[CHARMANDER_LABEL_LEN]; /* "OPEN" | "CLOSE" | "IDLE" */
-	char gripper_jaw_last[CHARMANDER_LABEL_LEN]; /* last non-IDLE jaw command */
+	CharmanderVerticalState_t gripper_vertical; /* "UP" | "DOWN" | "IDLE" */
+	CharmanderJawState_t gripper_jaw; /* "OPEN" | "CLOSE" | "IDLE" */
 	uint16_t gripper_cmd_raw;
 
 	/* 0x03  Gripper sequence */
-	char gripper_seq[CHARMANDER_LABEL_LEN]; /* "PICK" | "PLACE" | "NONE" */
+	CharmanderSequence_t gripper_seq; /* "PICK" | "PLACE" | "NONE" */
 	uint16_t gripper_seq_raw;
 
 	/* 0x04  Gripper auto enable */
-	char gripper_auto[CHARMANDER_LABEL_LEN]; /* "ENABLED" | "DISABLED" */
+	CharmanderEnable_t gripper_auto; /* "ENABLED" | "DISABLED" */
 	uint16_t gripper_auto_raw;
 
 	/* 0x05  Jog */
-	char jog_dir[CHARMANDER_LABEL_LEN]; /* "CCW" | "CW" | "NONE" */
+	CharmanderJogDir_t jog_dir; /* "CCW" | "CW" | "NONE" */
 	int16_t jog_degrees;
 
 	/* 0x06  Test type */
-	char test_type[CHARMANDER_LABEL_LEN]; /* "PRECISION" | "PERFORMANCE" */
+	CharmanderTestType_t test_type; /* "PRECISION" | "PERFORMANCE" */
 
 	/* 0x07  Performance test – velocity */
 	int16_t perf_velocity;
@@ -88,7 +160,7 @@ typedef struct {
 
 	/* 0x11  Precision test – repeat count (sign encodes unit) */
 	int16_t prec_repeat_count;
-	char prec_unit[CHARMANDER_LABEL_LEN]; /* "DEGREE" | "INDEX" */
+	CharmanderUnit_t prec_unit; /* "DEGREE" | "INDEX" */
 
 	/* 0x12–0x21  Pick & place sequence slots (16 slots) */
 	int16_t pp_slots[16];
@@ -97,13 +169,13 @@ typedef struct {
 	uint16_t pp_pair_count;
 
 	/* 0x23  Point-to-point unit */
-	char p2p_unit[CHARMANDER_LABEL_LEN]; /* "DEGREE" | "INDEX" */
+	CharmanderUnit_t p2p_unit; /* "DEGREE" | "INDEX" */
 
 	/* 0x24  Point-to-point target */
 	int16_t p2p_target;
 
 	/* 0x25  Soft stop */
-	char soft_stop[CHARMANDER_LABEL_LEN]; /* "STOP" | "RUNNING" */
+	CharmanderSoftStop_t soft_stop; /* "STOP" | "RUNNING" */
 
 	/* ────────────────────────────────────────────────────────────
 	 *  READ side  (Robot → PC, registers 0x00, 0x26–0x31)
@@ -113,12 +185,12 @@ typedef struct {
 
 	/* 0x26  Lead / reed sensors (bit-field) */
 	uint16_t sensor_raw; /* raw register value         */
-	char sensor_vertical[CHARMANDER_LABEL_LEN]; /* "UP" | "DOWN" | "IDLE"     */
-	char sensor_jaw[CHARMANDER_LABEL_LEN]; /* "OPEN" | "CLOSED"          */
+	CharmanderSensorVertical_t sensor_vertical; /* "UP" | "DOWN" | "IDLE"     */
+	CharmanderSensorJaw_t sensor_jaw; /* "OPEN" | "CLOSED"          */
 
 	/* 0x27  Current robot task (bit-field) */
 	uint16_t task_raw;
-	char task[CHARMANDER_LABEL_LEN]; /* "HOMING" | "GO_PICK" | "GO_PLACE" | "GO_POINT" | "IDLE" */
+	CharmanderTask_t task; /* "HOMING" | "GO_PICK" | "GO_PLACE" | "GO_POINT" | "IDLE" */
 
 	/* 0x28  Real position  (register value = real × 10) */
 	int16_t position_raw; /* raw register (÷10 for display) */
@@ -134,7 +206,7 @@ typedef struct {
 
 	/* 0x31  Emergency / safety state */
 	uint16_t emergency_raw;
-	char emergency[CHARMANDER_LABEL_LEN]; /* "ACTIVE" | "NORMAL" */
+	CharmanderEmergency_t emergency; /* "ACTIVE" | "NORMAL" */
 
 	/* ────────────────────────────────────────────────────────────
 	 *  Heartbeat timing (managed internally by Charmander_Tick)
@@ -145,10 +217,8 @@ typedef struct {
 	/* ────────────────────────────────────────────────────────────
 	 *  Heartbeat counters & TX status
 	 * ──────────────────────────────────────────────────────────── */
-	uint32_t hb_ya_sent_count; /* how many YA frames we have transmitted     */
-	uint32_t hb_hi_recv_count; /* how many HI replies we have received       */
-	char hb_tx_status[CHARMANDER_LABEL_LEN]; /* "SENT" | "IDLE"  — flips each send  */
-	char hb_rx_status[CHARMANDER_LABEL_LEN]; /* "GOT_HI" | "NO_REPLY" — current state */
+	CharmanderTxStatus_t hb_tx_status; /* "SENT" | "IDLE"  — flips each send  */
+	CharmanderRxStatus_t hb_rx_status; /* "GOT_HI" | "NO_REPLY" — current state */
 
 	/* ────────────────────────────────────────────────────────────
 	 *  Debug / diagnostics
@@ -158,6 +228,7 @@ typedef struct {
 	uint32_t frame_count; /* total valid frames processed  */
 	uint32_t crc_error_count; /* frames dropped due to CRC     */
 	uint32_t read_req_count; /* FC03 read requests handled    */
+	uint8_t tx_reply_buf[105];
 
 } Charmander_t;
 
@@ -192,12 +263,6 @@ void Charmander_Process(void);
 void Charmander_Tick(void);
 
 /**
- * @brief  Low-level heartbeat transmit. Sends FC06 Write reg 0x00 = 22881 ("YA").
- *         Normally called internally by Charmander_Tick(). Exposed for testing.
- */
-void Charmander_SendHeartbeat(void);
-
-/**
  * @brief  Build and transmit an FC03 Read-Holding-Registers reply containing
  *         registers 0x00 and 0x26–0x31.  The application must update the READ-side
  *         fields in charmander (sensor_raw, task_raw, position_raw, etc.) before
@@ -205,6 +270,14 @@ void Charmander_SendHeartbeat(void);
  *         Called automatically by Charmander_Process() when an FC03 request arrives.
  */
 void Charmander_BuildReadReply(uint16_t start_addr, uint16_t reg_count);
+
+void Charmander_SetSensors(uint16_t sensor_bits);
+
+void Charmander_SetTask(uint16_t task_bits);
+
+void Charmander_SetMotion(float pos, float vel, float acc);
+
+void Charmander_SetEmergency(uint8_t active);
 
 /* ─── Global instance (defined in charmander.c) ─────────────────── */
 extern Charmander_t charmander;

@@ -10,10 +10,9 @@
 #define INC_TRAJECTORY_H_
 
 #include <stdbool.h>
-#include "useful.h"
 
 typedef enum {
-	MJT_RUN, MJT_WAIT, MJT_DONE
+	MJT_IDLE, MJT_RUN, MJT_WAIT, MJT_DONE
 } MJT_State;
 
 /*
@@ -53,6 +52,8 @@ float MJT_Acc(float t, float T, float q0, float qf);
 /* ============================================================
  * Multi Segment
  * ============================================================ */
+
+void MJT_Reset(MJT_Trajectory *traj);
 
 void MJT_Goal(MJT_Trajectory *traj, const float *points, int num_points,
 		float q_start, float vmax);

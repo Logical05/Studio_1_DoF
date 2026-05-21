@@ -96,6 +96,7 @@ void Error_Handler(void);
 #define SSR_TRIG_GPIO_Port GPIOA
 #define RESET_5W_IN_Pin GPIO_PIN_11
 #define RESET_5W_IN_GPIO_Port GPIOC
+#define RESET_5W_IN_EXTI_IRQn EXTI15_10_IRQn
 #define RELAY_IN_Pin GPIO_PIN_12
 #define RELAY_IN_GPIO_Port GPIOC
 #define T_SWO_Pin GPIO_PIN_3

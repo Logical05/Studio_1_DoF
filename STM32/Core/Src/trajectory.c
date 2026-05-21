@@ -7,6 +7,7 @@
 #include "trajectory.h"
 
 #include <math.h>
+#include "useful.h"
 
 /*
  * Fastest possible time
@@ -18,8 +19,7 @@
 static float calc_time(float q0, float qf, float vmax) {
 	float dq = fabsf(qf - q0);
 
-	if (vmax <= 0.0f)
-		return 1.0f;
+	if (vmax <= 0.0f) return 1.0f;
 
 	return 1.875f * dq / vmax;
 }
@@ -74,8 +74,27 @@ static void load_segment(MJT_Trajectory *traj) {
  * Multi Segment
  * ============================================================ */
 
+void MJT_Reset(MJT_Trajectory *traj) {
+	__disable_irq();
+	traj->points = NULL;
+	traj->state = MJT_IDLE;
+
+	traj->num_points = 0;
+	traj->current = 0;
+
+	traj->q0 = 0.0f;
+	traj->qf = 0.0f;
+
+	traj->vmax = 0.0f;
+
+	traj->T = 0.0f;
+	traj->t = 0.0f;
+	__enable_irq();
+}
+
 void MJT_Goal(MJT_Trajectory *traj, const float *points, int num_points,
 		float q_start, float vmax) {
+	__disable_irq();
 	traj->points = points;
 
 	traj->num_points = num_points;
@@ -89,11 +108,11 @@ void MJT_Goal(MJT_Trajectory *traj, const float *points, int num_points,
 	traj->vmax = vmax;
 
 	load_segment(traj);
+	__enable_irq();
 }
 
 void MJT_Update(MJT_Trajectory *traj, float dt) {
-	if (traj->state != MJT_RUN)
-		return;
+	if (traj->state != MJT_RUN) return;
 
 	traj->t += dt;
 
@@ -107,8 +126,11 @@ void MJT_Update(MJT_Trajectory *traj, float dt) {
 }
 
 void MJT_Continue(MJT_Trajectory *traj) {
-	if (traj->state != MJT_WAIT)
+	__disable_irq();
+	if (traj->state != MJT_WAIT) {
+		__enable_irq();
 		return;
+	}
 
 	traj->current++;
 
@@ -123,6 +145,7 @@ void MJT_Continue(MJT_Trajectory *traj) {
 	load_segment(traj);
 
 	traj->state = MJT_RUN;
+	__enable_irq();
 }
 
 float MJT_get_Pos(const MJT_Trajectory *traj) {

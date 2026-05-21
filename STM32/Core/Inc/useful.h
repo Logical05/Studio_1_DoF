@@ -10,8 +10,17 @@
 
 #include "stm32g4xx_hal.h"
 #include <stdbool.h>
+#include <math.h>
 
 #define M_2PI 6.28318530717958647692
+
+#define RAD_TO_DEG(r) (((float)r) * (180.0f / (float)M_PI))
+#define DEG_TO_RAD(r) (((float)r) * ((float)M_PI / 180.0f))
+
+typedef struct {
+	GPIO_TypeDef *GPIOx;
+	uint16_t GPIO_Pin;
+} Pinout_TypeDef;
 
 typedef struct {
 	uint32_t start;
@@ -26,8 +35,7 @@ static void Timer_Start(DelayTimer *t, uint32_t ms) {
 }
 
 static bool Timer_Expired(DelayTimer *t) {
-	if (!t->active)
-		return false;
+	if (!t->active) return false;
 
 	if ((HAL_GetTick() - t->start) >= t->duration) {
 		t->active = false;
@@ -37,16 +45,13 @@ static bool Timer_Expired(DelayTimer *t) {
 	return false;
 }
 
-static float map(float x, float in_min, float in_max, float out_min,
-		float out_max) {
+static float map(float x, float in_min, float in_max, float out_min, float out_max) {
 	return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
 static float clamp(float x, float min, float max) {
-	if (x < min)
-		return min;
-	if (x > max)
-		return max;
+	if (x < min) return min;
+	if (x > max) return max;
 	return x;
 }
 

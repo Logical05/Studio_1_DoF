@@ -6,6 +6,7 @@
  */
 
 #include "pid.h"
+#include "useful.h"
 
 void PID_Init(PID_TypeDef *pid, float kp, float ki, float kd, float max_output,
 bool anti_windup, float integral_limit) {
@@ -13,13 +14,14 @@ bool anti_windup, float integral_limit) {
 	pid->integral_limit = integral_limit;
 	pid->anti_windup = anti_windup;
 
-	PID_Reset(pid, kp, ki, kd);
-}
-
-void PID_Reset(PID_TypeDef *pid, float kp, float ki, float kd) {
 	pid->kp = kp;
 	pid->ki = ki;
 	pid->kd = kd;
+
+	PID_Reset(pid);
+}
+
+void PID_Reset(PID_TypeDef *pid) {
 	pid->error[Error_NOW] = 0.0f;
 	pid->error[Error_LAST] = 0.0f;
 
@@ -28,8 +30,7 @@ void PID_Reset(PID_TypeDef *pid, float kp, float ki, float kd) {
 	pid->d_out = 0.0f;
 	pid->output = 0.0f;
 
-	if (pid->anti_windup && ki == 0.0f)
-		pid->anti_windup = false;
+	if (pid->anti_windup && pid->ki == 0.0f) pid->anti_windup = false;
 }
 
 void PID_Calc(PID_TypeDef *pid, float setpoint, float process) {
@@ -40,7 +41,7 @@ void PID_Calc(PID_TypeDef *pid, float setpoint, float process) {
 
 	// Integral Limit
 	pid->i_out = clamp_max(pid->i_out + (pid->ki * pid->error[Error_NOW]),
-			pid->integral_limit);
+		pid->integral_limit);
 
 	// Anti-Windup Clamp
 	bool positive = pid->output >= pid->max_output
@@ -51,8 +52,7 @@ void PID_Calc(PID_TypeDef *pid, float setpoint, float process) {
 		pid->i_out = 0.0f;
 	}
 
-	pid->output = clamp_max(pid->p_out + pid->i_out + pid->d_out,
-			pid->max_output);
+	pid->output = clamp_max(pid->p_out + pid->i_out + pid->d_out, pid->max_output);
 
 	pid->error[Error_LAST] = pid->error[Error_NOW];
 }

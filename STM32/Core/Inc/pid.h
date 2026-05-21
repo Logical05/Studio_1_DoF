@@ -9,7 +9,6 @@
 #define INC_PID_H_
 
 #include <stdbool.h>
-#include "useful.h"
 
 typedef enum {
 	Error_NOW, Error_LAST
@@ -34,7 +33,7 @@ typedef struct {
 void PID_Init(PID_TypeDef *pid, float kp, float ki, float kd, float max_output,
 bool anti_windup, float integral_limit);
 
-void PID_Reset(PID_TypeDef *pid, float kp, float ki, float kd);
+void PID_Reset(PID_TypeDef *pid);
 
 void PID_Calc(PID_TypeDef *pid, float setpoint, float process);
 
