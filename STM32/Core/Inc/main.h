@@ -62,8 +62,8 @@ void Error_Handler(void);
 #define B1_EXTI_IRQn EXTI15_10_IRQn
 #define RCC_OSC32_IN_Pin GPIO_PIN_14
 #define RCC_OSC32_IN_GPIO_Port GPIOC
-#define RCC_OSC32_OUT_Pin GPIO_PIN_15
-#define RCC_OSC32_OUT_GPIO_Port GPIOC
+#define SSR_TRIG_Pin GPIO_PIN_15
+#define SSR_TRIG_GPIO_Port GPIOC
 #define RCC_OSC_IN_Pin GPIO_PIN_0
 #define RCC_OSC_IN_GPIO_Port GPIOF
 #define RCC_OSC_OUT_Pin GPIO_PIN_1
@@ -76,24 +76,28 @@ void Error_Handler(void);
 #define LPUART1_RX_GPIO_Port GPIOA
 #define LD2_Pin GPIO_PIN_5
 #define LD2_GPIO_Port GPIOA
-#define PS_TX_Pin GPIO_PIN_4
-#define PS_TX_GPIO_Port GPIOC
+#define REED_DOWN_Pin GPIO_PIN_1
+#define REED_DOWN_GPIO_Port GPIOB
+#define REED_UP_Pin GPIO_PIN_2
+#define REED_UP_GPIO_Port GPIOB
 #define MOTOR_DIR_Pin GPIO_PIN_11
 #define MOTOR_DIR_GPIO_Port GPIOB
+#define REED_OPEN_Pin GPIO_PIN_14
+#define REED_OPEN_GPIO_Port GPIOB
+#define REED_CLOSE_Pin GPIO_PIN_15
+#define REED_CLOSE_GPIO_Port GPIOB
 #define ENCODER_A_Pin GPIO_PIN_6
 #define ENCODER_A_GPIO_Port GPIOC
 #define ENCODER_B_Pin GPIO_PIN_7
 #define ENCODER_B_GPIO_Port GPIOC
+#define PS_TX_Pin GPIO_PIN_9
+#define PS_TX_GPIO_Port GPIOA
 #define PS_RX_Pin GPIO_PIN_10
 #define PS_RX_GPIO_Port GPIOA
 #define MOTOR_PWM_Pin GPIO_PIN_12
 #define MOTOR_PWM_GPIO_Port GPIOA
-#define T_SWDIO_Pin GPIO_PIN_13
-#define T_SWDIO_GPIO_Port GPIOA
-#define T_SWCLK_Pin GPIO_PIN_14
-#define T_SWCLK_GPIO_Port GPIOA
-#define SSR_TRIG_Pin GPIO_PIN_15
-#define SSR_TRIG_GPIO_Port GPIOA
+#define GP_DOWN_Pin GPIO_PIN_15
+#define GP_DOWN_GPIO_Port GPIOA
 #define RESET_5W_IN_Pin GPIO_PIN_11
 #define RESET_5W_IN_GPIO_Port GPIOC
 #define RESET_5W_IN_EXTI_IRQn EXTI15_10_IRQn
@@ -103,6 +107,8 @@ void Error_Handler(void);
 #define T_SWO_GPIO_Port GPIOB
 #define ENCODER_Z_Pin GPIO_PIN_6
 #define ENCODER_Z_GPIO_Port GPIOB
+#define GP_UP_Pin GPIO_PIN_7
+#define GP_UP_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

@@ -45,18 +45,23 @@ static bool Timer_Expired(DelayTimer *t) {
 	return false;
 }
 
-static float map(float x, float in_min, float in_max, float out_min, float out_max) {
+static inline float map(float x, float in_min, float in_max, float out_min,
+		float out_max) {
 	return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-static float clamp(float x, float min, float max) {
+static inline float clamp(float x, float min, float max) {
 	if (x < min) return min;
 	if (x > max) return max;
 	return x;
 }
 
-static float clamp_max(float x, float max) {
+static inline float clamp_max(float x, float max) {
 	return clamp(x, -max, max);
+}
+
+static inline float signf_fast(float x) {
+	return (x > 0.0f) - (x < 0.0f);
 }
 
 #endif /* SRC_USEFUL_H_ */

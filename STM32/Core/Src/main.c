@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "dma.h"
+#include "fdcan.h"
 #include "usart.h"
 #include "tim.h"
 #include "gpio.h"
@@ -33,6 +34,7 @@
 #include "useful.h"
 #include "kalman.h"
 #include "charmander.h"
+#include "gripper.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -42,7 +44,7 @@ typedef enum {
 } QEI_State;
 
 typedef enum {
-	Position, Velocity
+	Position, Velocity, Acceleration
 } Reference_State;
 
 typedef struct {
@@ -70,10 +72,17 @@ typedef struct {
 
 #define ONE_TURN_QEI_CNT 20480
 #define MULTI_TURN_QEI_CNT 61440
-#define OBSERVER_PERIOD 0.001 // 1kHz
-#define TRAJ_PERIOD 0.002 // 500Hz
+#define OBSERVER_PERIOD 0.0002 // 5kHz
+#define MJT_PERIOD 0.001 // 1kHz
 
 #define HOMING_VOLTAGE (-3.0f)   /* V — slow CW creep; adjust sign/magnitude */
+
+#define J_M 0.029842f
+#define B_M 0.78891f
+#define KT_M 2.2321f
+#define KE_M 2.2321f
+#define R_M  9.0473919f
+#define L_M 0.0017419f
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -84,12 +93,26 @@ typedef struct {
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+
+float Friction = 1.0f;
+float Final_Voltage = 0.0f;
+
 /* ── GPIO pin map ────────────────────────────────────────────────────────── */
-const PIN_TypeDef GPIO = { { GPIOA, GPIO_PIN_15 }, /* SSR_TRIG    */
+static const PIN_TypeDef GPIO = { { GPIOC, GPIO_PIN_15 }, /* SSR_TRIG    */
 { GPIOB, GPIO_PIN_11 }, /* Motor_DIR   */
 { GPIOC, GPIO_PIN_12 }, /* Relay_IN    */
 { GPIOC, GPIO_PIN_11 }, /* Reset_5W_IN */
 { GPIOC, GPIO_PIN_3 }, /* PROX_IN     */
+};
+
+static const GripperConfig_t gripper_cfg = { { GPIOA, GPIO_PIN_14 }, /* GP_OPEN */
+{ GPIOA, GPIO_PIN_13 }, /* GP_CLOSE */
+{ GPIOB, GPIO_PIN_7 }, /* GP_UP */
+{ GPIOA, GPIO_PIN_15 }, /* GP_DOWN */
+{ GPIOB, GPIO_PIN_14 }, /* Reed_OPEN */
+{ GPIOB, GPIO_PIN_15 }, /* Reed_CLOSE */
+{ GPIOB, GPIO_PIN_2 }, /* Reed_UP */
+{ GPIOB, GPIO_PIN_1 }, /* Reed_DOWN */
 };
 
 /* ── Sensor / motion objects ─────────────────────────────────────────────── */
@@ -100,13 +123,20 @@ PID_TypeDef PD_Pos = { 0 }; /* outer position loop (PD)  */
 PID_TypeDef PI_Velo = { 0 }; /* inner velocity loop (PI)  */
 
 MJT_Trajectory traj = { 0 };
-float Reference[2] = { 0.0f, 0.0f }; /* [Position], [Velocity] */
+float Reference[3] = { 0.0f, 0.0f, 0.0f }; /* [Position], [Velocity] */
 
 DelayTimer wait_timer; /* generic one-shot delay used by sequences */
 
 /* ── Tuning knobs (changeable without recompile via debugger) ─────────────── */
-float KF_Q = 1.0e-3f;
-float VMAX = 5.31f; /* [rad/s] trajectory speed limit            */
+float KF_Q_T = 1.0e-3f;
+float KF_Q_O = 1.0e-2f;
+float KF_Q_C = 1.0e-2f;
+float KF_Q_L = 1.0e-1f;
+float KF_R = 5e-5f;
+float VMAX = 4.0f;     // rad/s
+//float AMAX = 30.0f;    // rad/s²
+float AMAX = 1.15f;    // rad/s²
+float JMAX = 300.0f;   // rad/s³
 
 /* ── Safety flags ────────────────────────────────────────────────────────── */
 bool EMERGENCY = true;
@@ -120,6 +150,9 @@ static uint8_t lpuart1_rx_byte;
 
 /* HOME mode */
 bool homing_active = false;
+
+GPIO_PinState ESTOP;
+GPIO_PinState RESETS;
 
 /* AUTO / pick-place mode */
 static uint16_t pp_current_pair = 0; /* which pair we are executing (0-based) */
@@ -193,6 +226,7 @@ int main(void) {
 	MX_USART1_UART_Init();
 	MX_LPUART1_UART_Init();
 	MX_TIM7_Init();
+	MX_FDCAN1_Init();
 	/* USER CODE BEGIN 2 */
 	Init();
 	/* USER CODE END 2 */
@@ -203,6 +237,8 @@ int main(void) {
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
+		ESTOP = HAL_GPIO_ReadPin(GPIO.Relay_IN.GPIOx, GPIO.Relay_IN.GPIO_Pin);
+		RESETS = HAL_GPIO_ReadPin(GPIO.Reset_5W_IN.GPIOx, GPIO.Reset_5W_IN.GPIO_Pin);
 
 		/* 1. Parse any Modbus bytes that arrived since last loop */
 		Charmander_Process();
@@ -215,6 +251,8 @@ int main(void) {
 
 		/* 4. Mirror motion feedback into the Modbus READ registers */
 		Charmander_Update_Feedback();
+
+		Gripper_Update();
 
 		/* 5. Safety gate — motor must not move while EMERGENCY is set */
 		if (EMERGENCY) {
@@ -311,6 +349,7 @@ void Init(void) {
 	Break();
 
 	HAL_GPIO_WritePin(GPIO.SSR_TRIG.GPIOx, GPIO.SSR_TRIG.GPIO_Pin, GPIO_PIN_RESET);
+	Gripper_Init(&gripper_cfg);
 
 	HAL_TIM_Encoder_Start(&htim8, TIM_CHANNEL_ALL);
 	HAL_TIM_Base_Start_IT(&htim6);
@@ -325,14 +364,14 @@ void Init(void) {
 
 	/* ── Kalman filter (DC motor physical parameters) ────────────────── */
 	KF_DCMotor_Init(&kf, OBSERVER_PERIOD, /* dt                     */
-	0.029842f, /* J  [kg·m²]             */
-	0.78891f, /* B  [N·m·s/rad]         */
-	2.2321f, /* Kt [N·m/A]             */
-	2.2321f, /* Ke [V·s/rad]           */
-	9.0473919f, /* Rm [Ω]                 */
-	0.0017419f, /* L  [H]                 */
-	KF_Q, /* Q  (process noise)     */
-	5e-5f /* R  (measurement noise) */
+	J_M, /* J  [kg·m²]             */
+	B_M, /* B  [N·m·s/rad]         */
+	KT_M, /* Kt [N·m/A]             */
+	KE_M, /* Ke [V·s/rad]           */
+	R_M, /* Rm [Ω]                 */
+	L_M, /* L  [H]                 */
+	KF_Q_T, /* Q  (process noise)     */
+	KF_R /* R  (measurement noise) */
 	);
 
 	/* ── Charmander (Modbus RTU slave) ───────────────────────────────── */
@@ -367,6 +406,13 @@ void Steerinng(float voltage) {
 
 	HAL_GPIO_WritePin(GPIO.Motor_DIR.GPIOx, GPIO.Motor_DIR.GPIO_Pin,
 		voltage > 0.0f ? GPIO_PIN_RESET : GPIO_PIN_SET);
+
+	voltage = clamp_max(voltage, 24.0f);
+
+	Final_Voltage = voltage;
+	KF_Predict(&kf, voltage);
+	KF_SetQ(&kf, KF_Q_T, KF_Q_O, KF_Q_C, KF_Q_L);
+	KF_Update(&kf, QEIdata.theta);
 
 	uint16_t pwm = (uint16_t) map(fabsf(voltage), 0.0f, 24.0f, 0.0f, 100.0f);
 	__HAL_TIM_SET_COMPARE(&htim16, TIM_CHANNEL_1, pwm);
@@ -421,7 +467,7 @@ void Mode_Idle(void) {
 	Charmander_SetTask(0x0000); /* IDLE */
 
 	/* Re-arm reference to the current position so we hold it */
-	Reference[Position] = QEIdata.theta;
+//	Reference[Position] = QEIdata.theta;
 	Reference[Velocity] = 0.0f;
 
 	/* Reset mode-local state so next mode entry starts clean */
@@ -471,7 +517,7 @@ void Mode_Jog(void) {
 
 		static float jog_pts[1];
 		jog_pts[0] = target;
-		MJT_Goal(&traj, jog_pts, 1, QEIdata.theta, VMAX / 3.0f);
+		MJT_Goal(&traj, jog_pts, 1, QEIdata.theta, VMAX, AMAX);
 	}
 
 	/* Run the active trajectory segment */
@@ -480,6 +526,7 @@ void Mode_Jog(void) {
 
 		Reference[Position] = MJT_get_Pos(&traj);
 		Reference[Velocity] = MJT_get_Vel(&traj);
+		Reference[Acceleration] = MJT_get_Acc(&traj);
 	} else {
 		charmander.mode = CHARMANDER_MODE_IDLE;
 		MJT_Reset(&traj);
@@ -506,6 +553,8 @@ void Mode_Auto(void) {
 		return;
 	}
 
+	static DelayTimer auto_tim = { 0 };
+	static bool init = true;
 	static float auto_pts[16] = { 0.0f };
 	switch (traj.state) {
 		case MJT_IDLE:
@@ -525,13 +574,19 @@ void Mode_Auto(void) {
 				auto_pts[i] = QEIdata.theta + (target - now);
 			}
 
-			MJT_Goal(&traj, auto_pts, targets, QEIdata.theta, VMAX);
+			MJT_Goal(&traj, auto_pts, targets, QEIdata.theta, VMAX, AMAX);
 			Charmander_SetTask(0x0002);
 			break;
 		case MJT_WAIT:
-			// Wait until pick/place done
-
-			MJT_Continue(&traj);
+			if (init) {
+				// pick/place around 2s
+				Timer_Start(&auto_tim, 2000);
+				init = false;
+				break;
+			} else if (Timer_Expired(&auto_tim)) {
+				MJT_Continue(&traj);
+				init = true;
+			}
 			break;
 		case MJT_DONE:
 			charmander.mode = CHARMANDER_MODE_IDLE;
@@ -544,6 +599,7 @@ void Mode_Auto(void) {
 
 	Reference[Position] = MJT_get_Pos(&traj);
 	Reference[Velocity] = MJT_get_Vel(&traj);
+	Reference[Acceleration] = MJT_get_Acc(&traj);
 }
 
 void Mode_P2P(void) {
@@ -567,7 +623,7 @@ void Mode_P2P(void) {
 
 			p2p_pts[0] = QEIdata.theta + (rad - now);
 
-			MJT_Goal(&traj, p2p_pts, 1, QEIdata.theta, VMAX);
+			MJT_Goal(&traj, p2p_pts, 1, QEIdata.theta, VMAX, AMAX);
 			Charmander_SetTask(0x0008); /* Go Point */
 			break;
 		case MJT_WAIT:
@@ -583,6 +639,7 @@ void Mode_P2P(void) {
 
 	Reference[Position] = MJT_get_Pos(&traj);
 	Reference[Velocity] = MJT_get_Vel(&traj);
+	Reference[Acceleration] = MJT_get_Acc(&traj);
 }
 
 /* ── SET_HOME ────────────────────────────────────────────────────────────── */
@@ -637,7 +694,7 @@ void Mode_Test(void) {
 		 * --------------------------------------------------------- */
 		if (!test_running) {
 			prec_pts[0] = pos_init;
-			MJT_Goal(&traj, prec_pts, 1, QEIdata.theta, VMAX);
+			MJT_Goal(&traj, prec_pts, 1, QEIdata.theta, VMAX, AMAX);
 			test_running = true;
 			init_reached = false;
 		}
@@ -659,7 +716,7 @@ void Mode_Test(void) {
 				prec_pts[i] = pos_final;
 				prec_pts[i + 1] = pos_init;
 			}
-			MJT_Goal(&traj, prec_pts, repeat * 2, QEIdata.theta, VMAX);
+			MJT_Goal(&traj, prec_pts, repeat * 2, QEIdata.theta, VMAX, AMAX);
 		}
 
 		/* ---------------------------------------------------------
@@ -676,26 +733,59 @@ void Mode_Test(void) {
 
 		Reference[Position] = MJT_get_Pos(&traj);
 		Reference[Velocity] = MJT_get_Vel(&traj);
+		Reference[Acceleration] = MJT_get_Acc(&traj);
 	} else {
 		float vmax_test = (float) charmander.perf_velocity;
-		if (vmax_test < 0.1f) vmax_test = 0.1f;
+		float amax_test = (float) charmander.perf_acceleration;
 		static float perf_pts[2] = { 0.0f, 0.0f };
 		if (!test_running) {
 			perf_pts[0] = DEG_TO_RAD(355.0f);
 			perf_pts[1] = 0.0f;
-			MJT_Goal(&traj, perf_pts, 2, QEIdata.theta, vmax_test);
+			MJT_Goal(&traj, perf_pts, 2, QEIdata.theta, vmax_test, amax_test);
 			test_running = true;
 		}
-		if (traj.state == MJT_WAIT) MJT_Continue(&traj);
-		if (MJT_is_Finished(&traj)) { /* Restart in opposite direction */
-			float tmp = perf_pts[0];
-			perf_pts[0] = perf_pts[1];
-			perf_pts[1] = tmp;
-			MJT_Goal(&traj, perf_pts, 2, QEIdata.theta, vmax_test);
+		switch (traj.state) {
+			case MJT_WAIT:
+				MJT_Continue(&traj);
+				break;
+			case MJT_DONE:
+				MJT_Reset(&traj);
+				charmander.mode = CHARMANDER_MODE_IDLE;
+				return;
+			default:
+				break;
 		}
 		Reference[Position] = MJT_get_Pos(&traj);
 		Reference[Velocity] = MJT_get_Vel(&traj);
+		Reference[Acceleration] = MJT_get_Acc(&traj);
 	}
+}
+
+float Feedforward_Calc(float dq_ref, float ddq_ref) {
+	/*
+	 * Robot inverse dynamics
+	 *
+	 * tau = J*ddq + B*dq + friction
+	 */
+
+	float tau_ff = J_M * ddq_ref + B_M * dq_ref;
+
+	/*
+	 * Coulomb friction compensation
+	 */
+
+//	if (fabsf(dq_ref) > 0.01f) {
+//		tau_ff += Friction * signf_fast(dq_ref);
+//	}
+	/*
+	 * Torque -> voltage
+	 *
+	 * V = R/Kt * tau + Ke*w
+	 */
+
+	float v_ff = (R_M / KT_M) * tau_ff + KE_M * dq_ref;
+
+	return v_ff;
 }
 
 /* ============================================================================
@@ -715,10 +805,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		QEIdata.theta += d_theta;
 		QEIdata.omega = d_theta / OBSERVER_PERIOD;
 
-		KF_SetQ(&kf, KF_Q, KF_Q * 10.0f, KF_Q * 10.0f, KF_Q * 100.0f);
-		KF_Predict(&kf, PI_Velo.output);
-		KF_Update(&kf, QEIdata.theta);
-
 		QEIdata.filter_omega = kf.x[1];
 		QEIdata.position[QEI_PREV] = QEIdata.position[QEI_NOW];
 
@@ -727,14 +813,24 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		PID_Calc(&PI_Velo, PD_Pos.output + Reference[Velocity],
 			QEIdata.filter_omega);
 
-		/* Deadband */
-		if (INRANGE(PI_Velo.output, 0.05f)) PI_Velo.output = 0.0f;
+		float v_ff = Feedforward_Calc(Reference[Velocity], Reference[Acceleration]);
+		float tau_d = kf.x[3];   // disturbance torque
 
-		Steerinng(PI_Velo.output);
+		float v_disturb = -(R_M / KT_M) * tau_d;
+
+		/*
+		 * Final voltage
+		 */
+		float voltage = PI_Velo.output + v_ff + v_disturb;
+
+//		/* Deadband */
+//		if (INRANGE(PI_Velo.output, 0.05f)) PI_Velo.output = 0.0f;
+
+		Steerinng(voltage);
 	}
 
 	if (htim->Instance == TIM7) {
-		MJT_Update(&traj, TRAJ_PERIOD);
+		MJT_Update(&traj, MJT_PERIOD);
 		PID_Calc(&PD_Pos, Reference[Position], QEIdata.theta);
 	}
 }
@@ -758,7 +854,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 		 * Clear the latch only when the E-stop button is NOT currently pressed.
 		 * If the operator presses RESET while the E-stop is still held, ignore.
 		 */
-		if (!emergency_btn) {
+		if (!emergency_btn && HAL_GPIO_ReadPin(GPIO.Reset_5W_IN.GPIOx,
+									GPIO.Reset_5W_IN.GPIO_Pin)
+								== GPIO_PIN_RESET) {
 			emergency_latched = false;
 		}
 	}

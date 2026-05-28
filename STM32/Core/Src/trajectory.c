@@ -11,17 +11,22 @@
 
 /*
  * Fastest possible time
- *
- * vmax = 1.875 dq / T
- *
- * T = 1.875 dq / vmax
  */
-static float calc_time(float q0, float qf, float vmax) {
+static float calc_time(float q0, float qf, float vmax, float amax) {
 	float dq = fabsf(qf - q0);
 
-	if (vmax <= 0.0f) return 1.0f;
+	float Tv = 1.875f * dq / vmax;
+	float Ta = sqrtf(5.7735f * dq / amax);
+//	float T = fmaxf(Tv, Ta);
+	float T = Ta;
 
-	return 1.875f * dq / vmax;
+	/*
+	 * Minimum practical time
+	 */
+
+	if (T < 0.8f) T = 0.8f;
+
+	return T;
 }
 
 /* ============================================================
@@ -65,7 +70,7 @@ float MJT_Acc(float t, float T, float q0, float qf) {
 static void load_segment(MJT_Trajectory *traj) {
 	traj->qf = traj->points[traj->current];
 
-	traj->T = calc_time(traj->q0, traj->qf, traj->vmax);
+	traj->T = calc_time(traj->q0, traj->qf, traj->vmax, traj->amax);
 
 	traj->t = 0.0f;
 }
@@ -86,6 +91,7 @@ void MJT_Reset(MJT_Trajectory *traj) {
 	traj->qf = 0.0f;
 
 	traj->vmax = 0.0f;
+	traj->amax = 0.0f;
 
 	traj->T = 0.0f;
 	traj->t = 0.0f;
@@ -93,7 +99,7 @@ void MJT_Reset(MJT_Trajectory *traj) {
 }
 
 void MJT_Goal(MJT_Trajectory *traj, const float *points, int num_points,
-		float q_start, float vmax) {
+		float q_start, float vmax, float amax) {
 	__disable_irq();
 	traj->points = points;
 
@@ -106,6 +112,7 @@ void MJT_Goal(MJT_Trajectory *traj, const float *points, int num_points,
 	traj->q0 = q_start;
 
 	traj->vmax = vmax;
+	traj->amax = amax;
 
 	load_segment(traj);
 	__enable_irq();

@@ -32,6 +32,7 @@ typedef struct {
 	float qf;
 
 	float vmax;
+	float amax;
 
 	float T;
 
@@ -56,7 +57,7 @@ float MJT_Acc(float t, float T, float q0, float qf);
 void MJT_Reset(MJT_Trajectory *traj);
 
 void MJT_Goal(MJT_Trajectory *traj, const float *points, int num_points,
-		float q_start, float vmax);
+		float q_start, float vmax, float amax);
 
 void MJT_Update(MJT_Trajectory *traj, float dt);
 
