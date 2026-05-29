@@ -1,303 +1,277 @@
-/*
- * gripper.c
- *
- *  Created on: May 28, 2026
- *      Author: rajap
- */
-
 #include "gripper.h"
 
 /* ============================================================================
- * Config
+ * Pin Map
  * ========================================================================== */
 
-#define GRIPPER_TIMEOUT_MS 2000U
+const GripperPin_t gripper_pin = { { GPIOC, GPIO_PIN_13 },   // OPEN
+	{ GPIOB, GPIO_PIN_14 },   // CLOSE
+
+	{ GPIOB, GPIO_PIN_7 },   // UP
+	{ GPIOA, GPIO_PIN_15 },   // DOWN
+
+	{ GPIOB, GPIO_PIN_15 },   // REED CLOSE
+	{ GPIOB, GPIO_PIN_2 },   // REED UP
+	{ GPIOB, GPIO_PIN_1 }    // REED DOWN
+};
 
 /* ============================================================================
- * Private data
+ * Global
  * ========================================================================== */
 
-static GripperConfig_t g_cfg;
-
-static GripperState_t g_state = GRIPPER_IDLE;
-
-static uint32_t g_timestamp = 0;
+Gripper_t gripper;
 
 /* ============================================================================
- * Helpers
+ * Internal
  * ========================================================================== */
 
-static inline void pin_write(const GripperPin_t *p, GPIO_PinState state) {
-	HAL_GPIO_WritePin(p->port, p->pin, state);
-}
+static void Gripper_StopOutputs(void) {
+	HAL_GPIO_WritePin(gripper_pin.open_out.port, gripper_pin.open_out.pin,
+	GRIPPER_OFF);
 
-static inline GPIO_PinState pin_read(const GripperPin_t *p) {
-	return HAL_GPIO_ReadPin(p->port, p->pin);
-}
+	HAL_GPIO_WritePin(gripper_pin.close_out.port, gripper_pin.close_out.pin,
+	GRIPPER_OFF);
 
-static void all_outputs_off(void) {
-	pin_write(&g_cfg.open_out, GPIO_PIN_RESET);
-	pin_write(&g_cfg.close_out, GPIO_PIN_RESET);
-	pin_write(&g_cfg.up_out, GPIO_PIN_RESET);
-	pin_write(&g_cfg.down_out, GPIO_PIN_RESET);
-}
+	HAL_GPIO_WritePin(gripper_pin.up_out.port, gripper_pin.up_out.pin,
+	GRIPPER_OFF);
 
-static void timeout_reset(void) {
-	g_timestamp = HAL_GetTick();
-}
-
-static bool timeout_expired(void) {
-	return (HAL_GetTick() - g_timestamp) > GRIPPER_TIMEOUT_MS;
+	HAL_GPIO_WritePin(gripper_pin.down_out.port, gripper_pin.down_out.pin,
+	GRIPPER_OFF);
 }
 
 /* ============================================================================
- * Low-level actions
+ * Reed Status
  * ========================================================================== */
-
-static void action_open(void) {
-	all_outputs_off();
-
-	pin_write(&g_cfg.open_out, GPIO_PIN_SET);
-
-	g_state = GRIPPER_OPENING;
-
-	timeout_reset();
-}
-
-static void action_close(void) {
-	all_outputs_off();
-
-	pin_write(&g_cfg.close_out, GPIO_PIN_SET);
-
-	g_state = GRIPPER_CLOSING;
-
-	timeout_reset();
-}
-
-static void action_up(void) {
-	all_outputs_off();
-
-	pin_write(&g_cfg.up_out, GPIO_PIN_SET);
-
-	g_state = GRIPPER_MOVING_UP;
-
-	timeout_reset();
-}
-
-static void action_down(void) {
-	all_outputs_off();
-
-	pin_write(&g_cfg.down_out, GPIO_PIN_SET);
-
-	g_state = GRIPPER_MOVING_DOWN;
-
-	timeout_reset();
-}
-
-/* ============================================================================
- * Public
- * ========================================================================== */
-
-void Gripper_Init(const GripperConfig_t *config) {
-	g_cfg = *config;
-
-	all_outputs_off();
-
-	g_state = GRIPPER_IDLE;
-}
-
-void Gripper_Stop(void) {
-	all_outputs_off();
-
-	g_state = GRIPPER_IDLE;
-}
-
-void Gripper_Command(GripperCommand_t cmd) {
-	switch (cmd) {
-		case GRIPPER_CMD_OPEN:
-			action_open();
-			break;
-
-		case GRIPPER_CMD_CLOSE:
-			action_close();
-			break;
-
-		case GRIPPER_CMD_UP:
-			action_up();
-			break;
-
-		case GRIPPER_CMD_DOWN:
-			action_down();
-			break;
-
-		case GRIPPER_CMD_PICK:
-			action_close();
-			g_state = GRIPPER_PICKING;
-			break;
-
-		case GRIPPER_CMD_PLACE:
-			action_down();
-			g_state = GRIPPER_PLACING;
-			break;
-
-		default:
-			break;
-	}
-}
-
-void Gripper_Update(void) {
-	switch (g_state) {
-
-		/* ============================================================= */
-		/* OPEN */
-		/* ============================================================= */
-
-		case GRIPPER_OPENING:
-
-			if (Gripper_IsOpened()) {
-				Gripper_Stop();
-				g_state = GRIPPER_DONE;
-			} else if (timeout_expired()) {
-				Gripper_Stop();
-				g_state = GRIPPER_ERROR;
-			}
-
-			break;
-
-			/* ============================================================= */
-			/* CLOSE */
-			/* ============================================================= */
-
-		case GRIPPER_CLOSING:
-
-			if (Gripper_IsClosed()) {
-				Gripper_Stop();
-				g_state = GRIPPER_DONE;
-			} else if (timeout_expired()) {
-				Gripper_Stop();
-				g_state = GRIPPER_ERROR;
-			}
-
-			break;
-
-			/* ============================================================= */
-			/* UP */
-			/* ============================================================= */
-
-		case GRIPPER_MOVING_UP:
-
-			if (Gripper_IsUp()) {
-				Gripper_Stop();
-				g_state = GRIPPER_DONE;
-			} else if (timeout_expired()) {
-				Gripper_Stop();
-				g_state = GRIPPER_ERROR;
-			}
-
-			break;
-
-			/* ============================================================= */
-			/* DOWN */
-			/* ============================================================= */
-
-		case GRIPPER_MOVING_DOWN:
-
-			if (Gripper_IsDown()) {
-				Gripper_Stop();
-				g_state = GRIPPER_DONE;
-			} else if (timeout_expired()) {
-				Gripper_Stop();
-				g_state = GRIPPER_ERROR;
-			}
-
-			break;
-
-			/* ============================================================= */
-			/* PICK */
-			/* ============================================================= */
-
-		case GRIPPER_PICKING:
-
-			if (Gripper_IsClosed()) {
-				action_up();
-			} else if (timeout_expired()) {
-				Gripper_Stop();
-				g_state = GRIPPER_ERROR;
-			}
-
-			break;
-
-			/* ============================================================= */
-			/* PLACE */
-			/* ============================================================= */
-
-		case GRIPPER_PLACING:
-
-			if (Gripper_IsDown()) {
-				action_open();
-			} else if (timeout_expired()) {
-				Gripper_Stop();
-				g_state = GRIPPER_ERROR;
-			}
-
-			break;
-
-		default:
-			break;
-	}
-
-	/* ============================================================= */
-	/* PICK FINISH */
-	/* ============================================================= */
-
-	if (g_state == GRIPPER_MOVING_UP && Gripper_IsUp()) {
-		Gripper_Stop();
-		g_state = GRIPPER_DONE;
-	}
-
-	/* ============================================================= */
-	/* PLACE FINISH */
-	/* ============================================================= */
-
-	if (g_state == GRIPPER_OPENING && Gripper_IsOpened()) {
-		Gripper_Stop();
-		g_state = GRIPPER_DONE;
-	}
-}
-
-bool Gripper_IsBusy(void) {
-	return !(g_state == GRIPPER_IDLE || g_state == GRIPPER_DONE
-				|| g_state == GRIPPER_ERROR);
-}
-
-bool Gripper_IsDone(void) {
-	return g_state == GRIPPER_DONE;
-}
-
-bool Gripper_HasError(void) {
-	return g_state == GRIPPER_ERROR;
-}
-
-GripperState_t Gripper_GetState(void) {
-	return g_state;
-}
-
-/* ============================================================================
- * Sensors
- * ========================================================================== */
-
 bool Gripper_IsOpened(void) {
-	return pin_read(&g_cfg.reed_open) == GPIO_PIN_SET;
+	return !Gripper_IsClosed();
 }
 
 bool Gripper_IsClosed(void) {
-	return pin_read(&g_cfg.reed_close) == GPIO_PIN_SET;
+	return HAL_GPIO_ReadPin(gripper_pin.reed_close.port, gripper_pin.reed_close.pin) == REED_ACTIVE_STATE;
 }
 
 bool Gripper_IsUp(void) {
-	return pin_read(&g_cfg.reed_up) == GPIO_PIN_SET;
+	return HAL_GPIO_ReadPin(gripper_pin.reed_up.port, gripper_pin.reed_up.pin) == REED_ACTIVE_STATE;
 }
 
 bool Gripper_IsDown(void) {
-	return pin_read(&g_cfg.reed_down) == GPIO_PIN_SET;
+	return HAL_GPIO_ReadPin(gripper_pin.reed_down.port, gripper_pin.reed_down.pin) == REED_ACTIVE_STATE;
+}
+
+/* ============================================================================
+ * Init
+ * ========================================================================== */
+
+void Gripper_Init(void) {
+	Gripper_StopOutputs();
+
+	gripper.state = GRIPPER_IDLE;
+	gripper.busy = false;
+}
+
+/* ============================================================================
+ * Command
+ * ========================================================================== */
+bool Gripper_Command(GripperCommand_t cmd) {
+	if (gripper.busy) {
+		return false;
+	}
+
+	Gripper_StopOutputs();
+
+	gripper.busy = true;
+
+	gripper.cmd = cmd;
+	gripper.tick = HAL_GetTick();
+
+	switch (cmd) {
+
+		/* =========================================================
+		 * LOW LEVEL
+		 * =======================================================*/
+
+		case GRIPPER_CMD_OPEN:
+			HAL_GPIO_WritePin(gripper_pin.open_out.port, gripper_pin.open_out.pin,
+			GRIPPER_ON);
+
+			gripper.state = GRIPPER_OPENING;
+			break;
+		case GRIPPER_CMD_CLOSE:
+			HAL_GPIO_WritePin(gripper_pin.close_out.port, gripper_pin.close_out.pin,
+			GRIPPER_ON);
+
+			gripper.state = GRIPPER_CLOSING;
+			break;
+		case GRIPPER_CMD_UP:
+			HAL_GPIO_WritePin(gripper_pin.up_out.port, gripper_pin.up_out.pin,
+			GRIPPER_ON);
+
+			gripper.state = GRIPPER_MOVING_UP;
+			break;
+		case GRIPPER_CMD_DOWN:
+			HAL_GPIO_WritePin(gripper_pin.down_out.port, gripper_pin.down_out.pin,
+			GRIPPER_ON);
+
+			gripper.state = GRIPPER_MOVING_DOWN;
+			break;
+
+			/* =========================================================
+			 * HIGH LEVEL
+			 * =======================================================*/
+
+		case GRIPPER_CMD_PICK:
+			HAL_GPIO_WritePin(gripper_pin.down_out.port, gripper_pin.down_out.pin,
+			GRIPPER_ON);
+
+			gripper.state = GRIPPER_PICK_DOWN;
+			break;
+
+		case GRIPPER_CMD_PLACE:
+			HAL_GPIO_WritePin(gripper_pin.down_out.port, gripper_pin.down_out.pin,
+			GRIPPER_ON);
+
+			gripper.state = GRIPPER_PLACE_DOWN;
+			break;
+		default:
+			gripper.busy = false;
+			return false;
+	}
+	return true;
+}
+/* ============================================================================
+ * Update
+ * ========================================================================== */
+void Gripper_Update(void) {
+	if (!gripper.busy) {
+		return;
+	}
+
+	/* =========================================================
+	 * TIMEOUT
+	 * =======================================================*/
+
+	if ((HAL_GetTick() - gripper.tick) >= GRIPPER_TIMEOUT_MS) {
+		Gripper_StopOutputs();
+		gripper.state = GRIPPER_TIMEOUT;
+		gripper.busy = false;
+		return;
+	}
+
+	switch (gripper.state) {
+
+		/* =====================================================
+		 * LOW LEVEL
+		 * ===================================================*/
+
+		case GRIPPER_OPENING:
+			if (Gripper_IsOpened()) {
+				Gripper_StopOutputs();
+
+				gripper.state = GRIPPER_SUCCESS;
+				gripper.busy = false;
+			}
+			break;
+		case GRIPPER_CLOSING:
+			if (Gripper_IsClosed()) {
+				Gripper_StopOutputs();
+
+				gripper.state = GRIPPER_SUCCESS;
+				gripper.busy = false;
+			}
+			break;
+		case GRIPPER_MOVING_UP:
+			if (Gripper_IsUp()) {
+				Gripper_StopOutputs();
+
+				gripper.state = GRIPPER_SUCCESS;
+				gripper.busy = false;
+			}
+			break;
+		case GRIPPER_MOVING_DOWN:
+			if (Gripper_IsDown()) {
+				Gripper_StopOutputs();
+
+				gripper.state = GRIPPER_SUCCESS;
+				gripper.busy = false;
+			}
+			break;
+
+			/* =====================================================
+			 * PICK SEQUENCE
+			 * ===================================================*/
+
+		case GRIPPER_PICK_DOWN:
+			if (Gripper_IsDown()) {
+				Gripper_StopOutputs();
+
+				HAL_GPIO_WritePin(gripper_pin.close_out.port,
+					gripper_pin.close_out.pin,
+					GRIPPER_ON);
+
+				gripper.state = GRIPPER_PICK_CLOSE;
+			}
+			break;
+		case GRIPPER_PICK_CLOSE:
+			if (Gripper_IsClosed()) {
+				Gripper_StopOutputs();
+
+				HAL_GPIO_WritePin(gripper_pin.up_out.port, gripper_pin.up_out.pin,
+				GRIPPER_ON);
+
+				gripper.state = GRIPPER_PICK_UP;
+			}
+			break;
+		case GRIPPER_PICK_UP:
+			if (Gripper_IsUp()) {
+				Gripper_StopOutputs();
+
+				gripper.state = GRIPPER_SUCCESS;
+				gripper.busy = false;
+			}
+			break;
+
+			/* =====================================================
+			 * PLACE SEQUENCE
+			 * ===================================================*/
+
+		case GRIPPER_PLACE_DOWN:
+			if (Gripper_IsDown()) {
+				Gripper_StopOutputs();
+
+				HAL_GPIO_WritePin(gripper_pin.open_out.port,
+					gripper_pin.open_out.pin,
+					GRIPPER_ON);
+
+				gripper.state = GRIPPER_PLACE_OPEN;
+			}
+			break;
+		case GRIPPER_PLACE_OPEN:
+			if (Gripper_IsOpened()) {
+				Gripper_StopOutputs();
+
+				HAL_GPIO_WritePin(gripper_pin.up_out.port, gripper_pin.up_out.pin,
+				GRIPPER_ON);
+
+				gripper.state = GRIPPER_PLACE_UP;
+			}
+			break;
+		case GRIPPER_PLACE_UP:
+			if (Gripper_IsUp()) {
+				Gripper_StopOutputs();
+
+				gripper.state = GRIPPER_SUCCESS;
+				gripper.busy = false;
+			}
+			break;
+		default:
+			break;
+	}
+}
+
+/* ============================================================================
+ * Busy
+ * ========================================================================== */
+
+bool Gripper_IsBusy(void) {
+	return gripper.busy;
 }

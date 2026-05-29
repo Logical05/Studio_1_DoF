@@ -57,11 +57,8 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define B1_Pin GPIO_PIN_13
-#define B1_GPIO_Port GPIOC
-#define B1_EXTI_IRQn EXTI15_10_IRQn
-#define RCC_OSC32_IN_Pin GPIO_PIN_14
-#define RCC_OSC32_IN_GPIO_Port GPIOC
+#define GP_OPEN_Pin GPIO_PIN_13
+#define GP_OPEN_GPIO_Port GPIOC
 #define SSR_TRIG_Pin GPIO_PIN_15
 #define SSR_TRIG_GPIO_Port GPIOC
 #define RCC_OSC_IN_Pin GPIO_PIN_0
@@ -82,8 +79,8 @@ void Error_Handler(void);
 #define REED_UP_GPIO_Port GPIOB
 #define MOTOR_DIR_Pin GPIO_PIN_11
 #define MOTOR_DIR_GPIO_Port GPIOB
-#define REED_OPEN_Pin GPIO_PIN_14
-#define REED_OPEN_GPIO_Port GPIOB
+#define GP_CLOSE_Pin GPIO_PIN_14
+#define GP_CLOSE_GPIO_Port GPIOB
 #define REED_CLOSE_Pin GPIO_PIN_15
 #define REED_CLOSE_GPIO_Port GPIOB
 #define ENCODER_A_Pin GPIO_PIN_6

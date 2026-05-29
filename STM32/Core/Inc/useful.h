@@ -18,9 +18,9 @@
 #define DEG_TO_RAD(r) (((float)r) * ((float)M_PI / 180.0f))
 
 typedef struct {
-	GPIO_TypeDef *GPIOx;
-	uint16_t GPIO_Pin;
-} Pinout_TypeDef;
+	GPIO_TypeDef *port;
+	uint16_t pin;
+} Pinout_t;
 
 typedef struct {
 	uint32_t start;

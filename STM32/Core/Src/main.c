@@ -48,11 +48,11 @@ typedef enum {
 } Reference_State;
 
 typedef struct {
-	Pinout_TypeDef SSR_TRIG;
-	Pinout_TypeDef Motor_DIR;
-	Pinout_TypeDef Relay_IN;
-	Pinout_TypeDef Reset_5W_IN;
-	Pinout_TypeDef PROX_IN;
+	Pinout_t SSR_TRIG;
+	Pinout_t Motor_DIR;
+	Pinout_t Relay_IN;
+	Pinout_t Reset_5W_IN;
+	Pinout_t PROX_IN;
 } PIN_TypeDef;
 
 typedef struct {
@@ -105,16 +105,6 @@ static const PIN_TypeDef GPIO = { { GPIOC, GPIO_PIN_15 }, /* SSR_TRIG    */
 { GPIOC, GPIO_PIN_3 }, /* PROX_IN     */
 };
 
-static const GripperConfig_t gripper_cfg = { { GPIOA, GPIO_PIN_14 }, /* GP_OPEN */
-{ GPIOA, GPIO_PIN_13 }, /* GP_CLOSE */
-{ GPIOB, GPIO_PIN_7 }, /* GP_UP */
-{ GPIOA, GPIO_PIN_15 }, /* GP_DOWN */
-{ GPIOB, GPIO_PIN_14 }, /* Reed_OPEN */
-{ GPIOB, GPIO_PIN_15 }, /* Reed_CLOSE */
-{ GPIOB, GPIO_PIN_2 }, /* Reed_UP */
-{ GPIOB, GPIO_PIN_1 }, /* Reed_DOWN */
-};
-
 /* ── Sensor / motion objects ─────────────────────────────────────────────── */
 QEI_TypeDef QEIdata = { 0 };
 KF_TypeDef kf;
@@ -125,8 +115,6 @@ PID_TypeDef PI_Velo = { 0 }; /* inner velocity loop (PI)  */
 MJT_Trajectory traj = { 0 };
 float Reference[3] = { 0.0f, 0.0f, 0.0f }; /* [Position], [Velocity] */
 
-DelayTimer wait_timer; /* generic one-shot delay used by sequences */
-
 /* ── Tuning knobs (changeable without recompile via debugger) ─────────────── */
 float KF_Q_T = 1.0e-3f;
 float KF_Q_O = 1.0e-2f;
@@ -134,7 +122,6 @@ float KF_Q_C = 1.0e-2f;
 float KF_Q_L = 1.0e-1f;
 float KF_R = 5e-5f;
 float VMAX = 4.0f;     // rad/s
-//float AMAX = 30.0f;    // rad/s²
 float AMAX = 1.15f;    // rad/s²
 float JMAX = 300.0f;   // rad/s³
 
@@ -237,8 +224,8 @@ int main(void) {
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
-		ESTOP = HAL_GPIO_ReadPin(GPIO.Relay_IN.GPIOx, GPIO.Relay_IN.GPIO_Pin);
-		RESETS = HAL_GPIO_ReadPin(GPIO.Reset_5W_IN.GPIOx, GPIO.Reset_5W_IN.GPIO_Pin);
+		ESTOP = HAL_GPIO_ReadPin(GPIO.Relay_IN.port, GPIO.Relay_IN.pin);
+		RESETS = HAL_GPIO_ReadPin(GPIO.Reset_5W_IN.port, GPIO.Reset_5W_IN.pin);
 
 		/* 1. Parse any Modbus bytes that arrived since last loop */
 		Charmander_Process();
@@ -288,6 +275,31 @@ int main(void) {
 			default:
 				Mode_Idle();
 				break;
+		}
+
+		/* 7. Handle gripper commands from Modbus */
+		if (charmander.gripper_vertical == CHARMANDER_VERTICAL_DOWN) {
+			Gripper_Command(GRIPPER_CMD_DOWN);
+			charmander.gripper_vertical = CHARMANDER_VERTICAL_IDLE;
+		} else if (charmander.gripper_vertical == CHARMANDER_VERTICAL_UP) {
+			Gripper_Command(GRIPPER_CMD_UP);
+			charmander.gripper_vertical = CHARMANDER_VERTICAL_IDLE;
+		}
+
+		if (charmander.gripper_jaw == CHARMANDER_JAW_CLOSE) {
+			Gripper_Command(GRIPPER_CMD_CLOSE);
+			charmander.gripper_jaw = CHARMANDER_JAW_IDLE;
+		} else if (charmander.gripper_jaw == CHARMANDER_JAW_OPEN) {
+			Gripper_Command(GRIPPER_CMD_OPEN);
+			charmander.gripper_jaw = CHARMANDER_JAW_IDLE;
+		}
+
+		if (charmander.gripper_seq == CHARMANDER_SEQ_PICK) {
+			Gripper_Command(GRIPPER_CMD_PICK);
+			charmander.gripper_seq = CHARMANDER_SEQ_NONE;
+		} else if (charmander.gripper_seq == CHARMANDER_SEQ_PLACE) {
+			Gripper_Command(GRIPPER_CMD_PLACE);
+			charmander.gripper_seq = CHARMANDER_SEQ_NONE;
 		}
 
 		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5); /* heartbeat LED */
@@ -348,8 +360,8 @@ void SystemClock_Config(void) {
 void Init(void) {
 	Break();
 
-	HAL_GPIO_WritePin(GPIO.SSR_TRIG.GPIOx, GPIO.SSR_TRIG.GPIO_Pin, GPIO_PIN_RESET);
-	Gripper_Init(&gripper_cfg);
+	HAL_GPIO_WritePin(GPIO.SSR_TRIG.port, GPIO.SSR_TRIG.pin, GPIO_PIN_RESET);
+	Gripper_Init();
 
 	HAL_TIM_Encoder_Start(&htim8, TIM_CHANNEL_ALL);
 	HAL_TIM_Base_Start_IT(&htim6);
@@ -395,7 +407,7 @@ void QEI_Reset(void) {
  * ============================================================================ */
 void Break(void) {
 	__HAL_TIM_SET_COMPARE(&htim16, TIM_CHANNEL_1, 0);
-	HAL_GPIO_WritePin(GPIO.Motor_DIR.GPIOx, GPIO.Motor_DIR.GPIO_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIO.Motor_DIR.port, GPIO.Motor_DIR.pin, GPIO_PIN_RESET);
 }
 
 void Steerinng(float voltage) {
@@ -404,7 +416,7 @@ void Steerinng(float voltage) {
 		return;
 	}
 
-	HAL_GPIO_WritePin(GPIO.Motor_DIR.GPIOx, GPIO.Motor_DIR.GPIO_Pin,
+	HAL_GPIO_WritePin(GPIO.Motor_DIR.port, GPIO.Motor_DIR.pin,
 		voltage > 0.0f ? GPIO_PIN_RESET : GPIO_PIN_SET);
 
 	voltage = clamp_max(voltage, 24.0f);
@@ -424,7 +436,7 @@ void Steerinng(float voltage) {
  * ============================================================================ */
 void Charmander_Sync_State(void) {
 	/* ── Physical EMERGENCY button (Relay_IN, active-high) ──────────── */
-	emergency_btn = (HAL_GPIO_ReadPin(GPIO.Relay_IN.GPIOx, GPIO.Relay_IN.GPIO_Pin)
+	emergency_btn = (HAL_GPIO_ReadPin(GPIO.Relay_IN.port, GPIO.Relay_IN.pin)
 			== GPIO_PIN_SET);
 	if (emergency_btn) emergency_latched = true;
 
@@ -449,6 +461,13 @@ void Charmander_Update_Feedback(void) {
 
 	Charmander_SetMotion(pos_deg, vel_dps, accel_dps2);
 	Charmander_SetEmergency(EMERGENCY ? 1 : 0);
+
+	/* Update gripper sensor feedback */
+	uint16_t sensor_bits = 0;
+	if (Gripper_IsUp()) sensor_bits |= (1 << 0);
+	if (Gripper_IsDown()) sensor_bits |= (1 << 1);
+	if (Gripper_IsClosed()) sensor_bits |= (1 << 2);
+	Charmander_SetSensors(sensor_bits);
 }
 
 /* ============================================================================
@@ -466,7 +485,7 @@ void Charmander_Update_Feedback(void) {
 void Mode_Idle(void) {
 	Charmander_SetTask(0x0000); /* IDLE */
 
-	/* Re-arm reference to the current position so we hold it */
+	/* Hold current position via reference */
 //	Reference[Position] = QEIdata.theta;
 	Reference[Velocity] = 0.0f;
 
@@ -485,7 +504,7 @@ void Mode_Idle(void) {
 void Mode_Home(void) {
 	Charmander_SetTask(0x0001); /* 0x27 bit 0 = Homing */
 
-	GPIO_PinState prox = HAL_GPIO_ReadPin(GPIO.PROX_IN.GPIOx, GPIO.PROX_IN.GPIO_Pin);
+	GPIO_PinState prox = HAL_GPIO_ReadPin(GPIO.PROX_IN.port, GPIO.PROX_IN.pin);
 
 	if (prox == GPIO_PIN_SET) {
 		/* ── Prox fired: home found ───────────────────────────────── */
@@ -550,11 +569,11 @@ void Mode_Auto(void) {
 
 	if (targets == 0) {
 		charmander.mode = CHARMANDER_MODE_IDLE;
+		pp_current_pair = 0;
 		return;
 	}
 
-	static DelayTimer auto_tim = { 0 };
-	static bool init = true;
+	static bool action = true;
 	static float auto_pts[16] = { 0.0f };
 	switch (traj.state) {
 		case MJT_IDLE:
@@ -575,23 +594,36 @@ void Mode_Auto(void) {
 			}
 
 			MJT_Goal(&traj, auto_pts, targets, QEIdata.theta, VMAX, AMAX);
-			Charmander_SetTask(0x0002);
+			pp_current_pair = 0;
+			Charmander_SetTask(0x0002); /* GO_PICK */
 			break;
 		case MJT_WAIT:
-			if (init) {
-				// pick/place around 2s
-				Timer_Start(&auto_tim, 2000);
-				init = false;
+			if (action) {
+				/* Trigger gripper action at each waypoint */
+				if (charmander.gripper_auto == CHARMANDER_ENABLE) {
+					if (pp_current_pair % 2 == 0) {
+						charmander.gripper_seq = CHARMANDER_SEQ_PICK;
+						Charmander_SetTask(0x0002); /* GO_PICK */
+					} else {
+						charmander.gripper_seq = CHARMANDER_SEQ_PLACE;
+						Charmander_SetTask(0x0004); /* GO_PLACE */
+					}
+				}
+
+				action = false;
 				break;
-			} else if (Timer_Expired(&auto_tim)) {
+			} else if (!Gripper_IsBusy()) {
+				/* Continue if gripper done OR timeout reached */
+				pp_current_pair++;
 				MJT_Continue(&traj);
-				init = true;
+				action = true;
 			}
 			break;
 		case MJT_DONE:
 			charmander.mode = CHARMANDER_MODE_IDLE;
-
 			MJT_Reset(&traj);
+			pp_current_pair = 0;
+			action = true;
 			return;
 		default:
 			break;
@@ -849,13 +881,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
  *  GPIO EXTI — RESET button
  * ============================================================================ */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-	if (GPIO_Pin == GPIO.Reset_5W_IN.GPIO_Pin) {
+	if (GPIO_Pin == GPIO.Reset_5W_IN.pin) {
 		/*
 		 * Clear the latch only when the E-stop button is NOT currently pressed.
 		 * If the operator presses RESET while the E-stop is still held, ignore.
 		 */
-		if (!emergency_btn && HAL_GPIO_ReadPin(GPIO.Reset_5W_IN.GPIOx,
-									GPIO.Reset_5W_IN.GPIO_Pin)
+		if (!emergency_btn && HAL_GPIO_ReadPin(GPIO.Reset_5W_IN.port,
+									GPIO.Reset_5W_IN.pin)
 								== GPIO_PIN_RESET) {
 			emergency_latched = false;
 		}
