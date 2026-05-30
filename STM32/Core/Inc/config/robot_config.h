@@ -24,6 +24,8 @@
  */
 
 #define MOTOR_MAX_VOLTAGE          24.0f
+#define JOY_KNOB_MAX_VOLTAGE       10.0f
+#define JOY_KNOB_MIN_VOLTAGE       3.0f
 
 #define MOTOR_J                    0.029842f
 #define MOTOR_B                    0.78891f

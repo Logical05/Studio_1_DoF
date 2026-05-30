@@ -39,6 +39,19 @@ static JoyButton_t _active_dpad = JOY_NONE;
 static JoyButton_t _active_actions = JOY_NONE;
 
 /* ============================================================
+ * Debug — Live Expression monitor
+ * Add "joy_debug" to Live Expression — expands to all 16 slots.
+ *
+ *  Index map:
+ *   [0]  UP        [1]  DOWN      [2]  LEFT      [3]  RIGHT
+ *   [4]  CIRCLE    [5]  TRIANGLE  [6]  SQUARE    [7]  XMARK
+ *   [8]  SELECT    [9]  START     [10] L1        [11] L2
+ *   [12] R1        [13] R2        [14] last rx_byte (raw hex)
+ *   [15] packet_idx (>0 means byte was swallowed as analog packet)
+ * ============================================================ */
+volatile uint8_t joy_debug[16] = { 0 };
+
+/* ============================================================
  * Private Helpers — forward declarations
  * ============================================================ */
 static JoyButton_t _MapByte(uint8_t byte);
@@ -59,6 +72,7 @@ void JOY_Init(UART_HandleTypeDef *huart) {
 	_last_action_tick = 0;
 	memset(_packet_buf, 0, sizeof(_packet_buf));
 	memset(&_state, 0, sizeof(_state));
+	memset((void*) joy_debug, 0, sizeof(joy_debug));
 
 	/* Axes start at center (0) */
 	_state.left.x = 0;
@@ -130,6 +144,10 @@ void JOY_RxCpltCallback(UART_HandleTypeDef *huart) {
 
 	uint8_t b = _rx_byte;
 
+	/* Always mirror the raw byte for Live Expression debugging */
+	joy_debug[14] = b;
+	joy_debug[15] = _packet_idx;
+
 	if (b == 0x0A) {
 		/* LF — end of ASCII analog packet, parse it */
 		_packet_buf[_packet_idx] = '\0';
@@ -170,12 +188,15 @@ void JOY_RxCpltCallback(UART_HandleTypeDef *huart) {
 const JoyState_t* JOY_GetState(void) {
 	return &_state;
 }
+
 JoyButton_t JOY_GetButtons(void) {
 	return _state.buttons;
 }
+
 JoyAxis_t JOY_GetLeftAxis(void) {
 	return (JoyAxis_t ) { _state.left.x, _state.left.y } ;
 		}
+
 		JoyAxis_t JOY_GetRightAxis(void) {
 			return (JoyAxis_t ) { _state.right.x, _state.right.y } ;
 				}
@@ -187,12 +208,15 @@ JoyAxis_t JOY_GetLeftAxis(void) {
 				int16_t JOY_LeftX(void) {
 					return _state.left.x;
 				}
+
 				int16_t JOY_LeftY(void) {
 					return _state.left.y;
 				}
+
 				int16_t JOY_RightX(void) {
 					return _state.right.x;
 				}
+
 				int16_t JOY_RightY(void) {
 					return _state.right.y;
 				}
@@ -264,29 +288,29 @@ JoyAxis_t JOY_GetLeftAxis(void) {
 
 						/* Face Buttons */
 					case 0x4C:
-						return JOY_CIRCLE; /* Fixed mapping from previous step */
+						return JOY_CIRCLE;
 					case 0x49:
-						return JOY_TRIANGLE; /* 'I' */
+						return JOY_TRIANGLE;
 					case 0x4B:
-						return JOY_SQUARE; /* 'K' */
+						return JOY_SQUARE;
 					case 0x4A:
-						return JOY_XMARK; /* 'J' */
+						return JOY_XMARK;
 
 						/* Menu */
 					case 0x47:
-						return JOY_SELECT; /* 'G' */
+						return JOY_SELECT;
 					case 0x48:
-						return JOY_START; /* 'H' */
+						return JOY_START;
 
 						/* Shoulder */
 					case 0x45:
-						return JOY_L1; /* 'E' */
+						return JOY_L1;
 					case 0x46:
-						return JOY_L2; /* 'F' */
+						return JOY_L2;
 					case 0x4D:
-						return JOY_R1; /* 'M' */
+						return JOY_R1;
 					case 0x4E:
-						return JOY_R2; /* 'N' */
+						return JOY_R2;
 
 					default:
 						return JOY_NONE;
@@ -320,7 +344,7 @@ JoyAxis_t JOY_GetLeftAxis(void) {
 					}
 				}
 
-				/* Mirror bitmask → individual bool flags (for Live Expression / debugger) */
+				/* Mirror bitmask → individual bool flags + joy_debug array */
 				static void _SyncFlags(void) {
 					_state.btn_up = (_state.buttons & JOY_UP) ? 1 : 0;
 					_state.btn_down = (_state.buttons & JOY_DOWN) ? 1 : 0;
@@ -337,4 +361,21 @@ JoyAxis_t JOY_GetLeftAxis(void) {
 					_state.btn_l2 = (_state.buttons & JOY_L2) ? 1 : 0;
 					_state.btn_r1 = (_state.buttons & JOY_R1) ? 1 : 0;
 					_state.btn_r2 = (_state.buttons & JOY_R2) ? 1 : 0;
+
+					/* Debug mirror for Live Expression */
+					joy_debug[0] = _state.btn_up;
+					joy_debug[1] = _state.btn_down;
+					joy_debug[2] = _state.btn_left;
+					joy_debug[3] = _state.btn_right;
+					joy_debug[4] = _state.btn_circle;
+					joy_debug[5] = _state.btn_triangle;
+					joy_debug[6] = _state.btn_square;
+					joy_debug[7] = _state.btn_xmark;
+					joy_debug[8] = _state.btn_select;
+					joy_debug[9] = _state.btn_start;
+					joy_debug[10] = _state.btn_l1;
+					joy_debug[11] = _state.btn_l2;
+					joy_debug[12] = _state.btn_r1;
+					joy_debug[13] = _state.btn_r2;
+					/* [14] and [15] are updated live in JOY_RxCpltCallback */
 				}

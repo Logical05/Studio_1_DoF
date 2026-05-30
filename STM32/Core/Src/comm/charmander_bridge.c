@@ -8,6 +8,7 @@
 #include "comm/charmander_bridge.h"
 
 #include "app/safety.h"
+#include "comm/joy.h"
 #include "comm/charmander.h"
 #include "drivers/gripper.h"
 #include "drivers/qei.h"
@@ -105,7 +106,7 @@ void CharmanderBridge_UpdateFeedback(void) {
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     if (huart->Instance == LPUART1) {
         Charmander_Feed(rx_byte);
-
         HAL_UART_Receive_IT(&hlpuart1, &rx_byte, 1);
     }
+    JOY_RxCpltCallback(huart);
 }
