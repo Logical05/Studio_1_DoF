@@ -5,13 +5,16 @@
  * PROTOCOL RULES (STM32 = Slave #21):
  *  - PC (Master) initiates ALL communication.
  *  - Robot (Slave) ONLY replies to FC03 Read polls or acknowledges FC06 Writes.
- *  - Heartbeat is PASSIVE: PC polls reg 0x00 → robot replies 22881 → PC writes 18537 → robot marks ALIVE.
+ *  - Heartbeat is PASSIVE: PC polls reg 0x00 → robot replies 22881 → PC writes 18537
+ * → robot marks ALIVE.
  */
 
-#include "charmander.h"
-#include <string.h>
-#include <stdint.h>
+#include "comm/charmander.h"
+
 #include "stm32g4xx_hal.h"
+
+#include <stdint.h>
+#include <string.h>
 
 /* ─── External UART handle (defined in main.c) ────────────────── */
 extern UART_HandleTypeDef hlpuart1;
@@ -25,7 +28,8 @@ static volatile uint16_t rx_head = 0;
 static uint16_t rx_tail = 0;
 
 /* ─── Frame assembly state machine ─────────────────────────────── */
-static uint8_t frame[CHARMANDER_WRITE_FRAME_SIZE]; /* 8 bytes covers both FC06 & FC03 requests */
+static uint8_t frame[CHARMANDER_WRITE_FRAME_SIZE]; /* 8 bytes covers both FC06 & FC03
+ requests */
 static uint8_t frame_idx = 0;
 
 /* ─── Forward declarations ──────────────────────────────────────── */
@@ -91,8 +95,7 @@ void Charmander_Process(void) {
 		}
 
 		/* ── Byte 1: must be FC03 or FC06 ── */
-		if (frame_idx == 2&&
-		frame[1] != CHARMANDER_FC_WRITE &&
+		if (frame_idx == 2&& frame[1] != CHARMANDER_FC_WRITE &&
 		frame[1] != CHARMANDER_FC_READ) {
 			frame_idx = 0;
 			continue;
@@ -125,7 +128,7 @@ void Charmander_Process(void) {
  *  TICK — call every main loop iteration
  *  ONLY monitors heartbeat timeout. Does NOT transmit.
  * ═══════════════════════════════════════════════════════════════════ */
-//void Charmander_Tick(void) {
+// void Charmander_Tick(void) {
 //	uint32_t now = HAL_GetTick();
 //
 //	if (charmander.hb_last_alive_ms == 0) {
@@ -135,7 +138,7 @@ void Charmander_Process(void) {
 //		charmander.heartbeat = CHARMANDER_HB_DEAD;
 //		charmander.hb_rx_status = CHARMANDER_RX_NO_REPLY;
 //	}
-//}
+// }
 void Charmander_Tick(void) {
 	uint32_t now = HAL_GetTick();
 
@@ -163,12 +166,10 @@ void Charmander_Tick(void) {
  * ═══════════════════════════════════════════════════════════════════ */
 void Charmander_BuildReadReply(uint16_t start_addr, uint16_t reg_count) {
 	/* 1. VISUAL DEBUG: Toggle Green LED every time we reply */
-	//HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+	// HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
 	/* Validate request bounds */
-	if (start_addr != CHARMANDER_READ_START_ADDR)
-		return;
-	if (reg_count > CHARMANDER_READ_COUNT)
-		reg_count = CHARMANDER_READ_COUNT;
+	if (start_addr != CHARMANDER_READ_START_ADDR) return;
+	if (reg_count > CHARMANDER_READ_COUNT) reg_count = CHARMANDER_READ_COUNT;
 
 	/* Buffer size: Header(3) + Data(2 bytes per reg) + CRC(2) */
 	uint16_t byte_count = reg_count * 2;
@@ -199,8 +200,7 @@ void Charmander_BuildReadReply(uint16_t start_addr, uint16_t reg_count) {
 
 	/* Serialise Registers into Reply Buffer */
 	for (uint16_t i = 0; i < reg_count; i++) {
-		charmander.tx_reply_buf[3 + i * 2] = (uint8_t) (regs[start_addr + i]
-				>> 8); /* Hi Byte */
+		charmander.tx_reply_buf[3 + i * 2] = (uint8_t) (regs[start_addr + i] >> 8); /* Hi Byte */
 		charmander.tx_reply_buf[3 + i * 2 + 1] = (uint8_t) (regs[start_addr + i]
 				& 0xFF); /* Lo Byte */
 	}
@@ -212,8 +212,7 @@ void Charmander_BuildReadReply(uint16_t start_addr, uint16_t reg_count) {
 	charmander.tx_reply_buf[total_data_len + 1] = (uint8_t) (crc >> 8); /* CRC Hi */
 
 	/* Transmit the full frame */
-	HAL_UART_Transmit_DMA(&hlpuart1, charmander.tx_reply_buf,
-			total_data_len + 2);
+	HAL_UART_Transmit_DMA(&hlpuart1, charmander.tx_reply_buf, total_data_len + 2);
 
 	charmander.read_req_count++;
 }
@@ -230,157 +229,140 @@ static void decode_write_frame(const uint8_t *f) {
 	charmander.last_reg_value = raw;
 
 	switch (reg) {
-	case 0x0000: /* Heartbeat ACK from PC */
-		if (raw == CHARMANDER_HB_HI) {
+		case 0x0000: /* Heartbeat ACK from PC */
+			if (raw == CHARMANDER_HB_HI) {
 
-			/* Valid heartbeat acknowledge */
-			charmander.hb_last_alive_ms = HAL_GetTick();
+				/* Valid heartbeat acknowledge */
+				charmander.hb_last_alive_ms = HAL_GetTick();
 
-			charmander.heartbeat = CHARMANDER_HB_ALIVE;
-			charmander.hb_rx_status = CHARMANDER_RX_GOT_HI;
+				charmander.heartbeat = CHARMANDER_HB_ALIVE;
+				charmander.hb_rx_status = CHARMANDER_RX_GOT_HI;
 
-		} else {
+			} else {
 
-			/* Invalid value written to heartbeat register */
-			charmander.hb_rx_status = CHARMANDER_RX_BAD_VALUE;
-		}
-		break;
+				/* Invalid value written to heartbeat register */
+				charmander.hb_rx_status = CHARMANDER_RX_BAD_VALUE;
+			}
+			break;
 
-	case 0x0001:
-		charmander.mode_raw = raw;
-		if (raw & 0x0001)
-			charmander.mode = CHARMANDER_MODE_HOME;
-//			else if (raw & 0x0002) charmander.mode = CHARMANDER_MODE_JOG;
-//			else if (raw & 0x0004) charmander.mode = CHARMANDER_MODE_AUTO;
-		else if (raw & 0x0008)
-			charmander.mode = CHARMANDER_MODE_SET_HOME;
-//			else if (raw & 0x0010) charmander.mode = CHARMANDER_MODE_TEST;
-		else
-			charmander.mode = CHARMANDER_MODE_IDLE;
-		break;
+		case 0x0001:
+			charmander.mode_raw = raw;
+			if (raw & 0x0001) charmander.mode = CHARMANDER_MODE_HOME;
+			//			else if (raw & 0x0002) charmander.mode = CHARMANDER_MODE_JOG;
+			//			else if (raw & 0x0004) charmander.mode =
+			// CHARMANDER_MODE_AUTO;
+			else if (raw & 0x0008) charmander.mode = CHARMANDER_MODE_SET_HOME;
+			//			else if (raw & 0x0010) charmander.mode =
+			// CHARMANDER_MODE_TEST;
+			else charmander.mode = CHARMANDER_MODE_IDLE;
+			break;
 
-	case 0x0002:
-		charmander.gripper_cmd_raw = raw;
-		if (raw & 0x0001)
-			charmander.gripper_vertical = CHARMANDER_VERTICAL_DOWN;
-		else if (raw == 0x0000)
-			charmander.gripper_vertical = CHARMANDER_VERTICAL_UP;
-		else
-			charmander.gripper_vertical = CHARMANDER_VERTICAL_IDLE;
+		case 0x0002:
+			charmander.gripper_cmd_raw = raw;
+			if (raw & 0x0001) charmander.gripper_vertical = CHARMANDER_VERTICAL_DOWN;
+			else if (raw == 0x0000) charmander.gripper_vertical =
+					CHARMANDER_VERTICAL_UP;
+			else charmander.gripper_vertical = CHARMANDER_VERTICAL_IDLE;
 
-		if (raw & 0x0002) {
-			charmander.gripper_jaw = CHARMANDER_JAW_OPEN;
-		} else if (raw & 0x0004) {
-			charmander.gripper_jaw = CHARMANDER_JAW_CLOSE;
-		} else {
-			charmander.gripper_jaw = CHARMANDER_JAW_IDLE;
-		}
-		break;
+			if (raw & 0x0002) {
+				charmander.gripper_jaw = CHARMANDER_JAW_OPEN;
+			} else if (raw & 0x0004) {
+				charmander.gripper_jaw = CHARMANDER_JAW_CLOSE;
+			} else {
+				charmander.gripper_jaw = CHARMANDER_JAW_IDLE;
+			}
+			break;
 
-	case 0x0003:
-		charmander.gripper_seq_raw = raw;
-		if (raw & 0x0001)
-			charmander.gripper_seq = CHARMANDER_SEQ_PICK;
-		else if (raw & 0x0002)
-			charmander.gripper_seq = CHARMANDER_SEQ_PLACE;
-		else
-			charmander.gripper_seq = CHARMANDER_SEQ_NONE;
-		break;
+		case 0x0003:
+			charmander.gripper_seq_raw = raw;
+			if (raw & 0x0001) charmander.gripper_seq = CHARMANDER_SEQ_PICK;
+			else if (raw & 0x0002) charmander.gripper_seq = CHARMANDER_SEQ_PLACE;
+			else charmander.gripper_seq = CHARMANDER_SEQ_NONE;
+			break;
 
-	case 0x0004:
-		charmander.gripper_auto_raw = raw;
-		if (raw & 0x0001)
-			charmander.gripper_auto = CHARMANDER_ENABLE;
-		else
-			charmander.gripper_auto = CHARMANDER_DISABLE;
+		case 0x0004:
+			charmander.gripper_auto_raw = raw;
+			if (raw & 0x0001) charmander.gripper_auto = CHARMANDER_ENABLE;
+			else charmander.gripper_auto = CHARMANDER_DISABLE;
 
-		break;
+			break;
 
-	case 0x0005:
-		charmander.mode = CHARMANDER_MODE_JOG;
-		charmander.jog_degrees = s_raw;
-		if (s_raw > 0)
-			charmander.jog_dir = CHARMANDER_JOG_CCW;
-		else if (s_raw < 0)
-			charmander.jog_dir = CHARMANDER_JOG_CW;
-		else
-			charmander.jog_dir = CHARMANDER_JOG_NONE;
-		break;
+		case 0x0005:
+			charmander.mode = CHARMANDER_MODE_JOG;
+			charmander.jog_degrees = s_raw;
+			if (s_raw > 0) charmander.jog_dir = CHARMANDER_JOG_CCW;
+			else if (s_raw < 0) charmander.jog_dir = CHARMANDER_JOG_CW;
+			else charmander.jog_dir = CHARMANDER_JOG_NONE;
+			break;
 
-//		case 0x0006:
-//			charmander.mode = CHARMANDER_MODE_TEST;
-//			break;
+			//		case 0x0006:
+			//			charmander.mode = CHARMANDER_MODE_TEST;
+			//			break;
 
-	case 0x0007:
-		charmander.perf_velocity = s_raw;
-		break;
-	case 0x0008:
-		charmander.perf_acceleration = s_raw;
-		charmander.mode = CHARMANDER_MODE_TEST;
-		charmander.test_type = CHARMANDER_TEST_PERFORMANCE;
-		break;
-	case 0x0009:
-		charmander.prec_init_pos = s_raw;
-		break;
-	case 0x0010:
-		charmander.prec_final_pos = s_raw;
-		break;
-	case 0x0011:
-		charmander.prec_repeat_count = s_raw;
-		if (s_raw < 0)
-			charmander.prec_unit = CHARMANDER_UNIT_INDEX;
-		else
-			charmander.prec_unit = CHARMANDER_UNIT_DEGREE;
-		charmander.mode = CHARMANDER_MODE_TEST;
-		charmander.test_type = CHARMANDER_TEST_PRECISION;
-		break;
+		case 0x0007:
+			charmander.perf_velocity = s_raw;
+			break;
+		case 0x0008:
+			charmander.perf_acceleration = s_raw;
+			charmander.mode = CHARMANDER_MODE_TEST;
+			charmander.test_type = CHARMANDER_TEST_PERFORMANCE;
+			break;
+		case 0x0009:
+			charmander.prec_init_pos = s_raw;
+			break;
+		case 0x0010:
+			charmander.prec_final_pos = s_raw;
+			break;
+		case 0x0011:
+			charmander.prec_repeat_count = s_raw;
+			if (s_raw < 0) charmander.prec_unit = CHARMANDER_UNIT_INDEX;
+			else charmander.prec_unit = CHARMANDER_UNIT_DEGREE;
+			charmander.mode = CHARMANDER_MODE_TEST;
+			charmander.test_type = CHARMANDER_TEST_PRECISION;
+			break;
 
-	case 0x0012:
-	case 0x0013:
-	case 0x0014:
-	case 0x0015:
-	case 0x0016:
-	case 0x0017:
-	case 0x0018:
-	case 0x0019:
-	case 0x001A:
-	case 0x001B:
-	case 0x001C:
-	case 0x001D:
-	case 0x001E:
-	case 0x001F:
-	case 0x0020:
-	case 0x0021:
-		charmander.pp_slots[reg - 0x0012] = s_raw;
-		break;
+		case 0x0012:
+		case 0x0013:
+		case 0x0014:
+		case 0x0015:
+		case 0x0016:
+		case 0x0017:
+		case 0x0018:
+		case 0x0019:
+		case 0x001A:
+		case 0x001B:
+		case 0x001C:
+		case 0x001D:
+		case 0x001E:
+		case 0x001F:
+		case 0x0020:
+		case 0x0021:
+			charmander.pp_slots[reg - 0x0012] = s_raw;
+			break;
 
-	case 0x0022:
-		charmander.pp_pair_count = raw;
-		charmander.mode = CHARMANDER_MODE_AUTO;
-		break;
+		case 0x0022:
+			charmander.pp_pair_count = raw;
+			charmander.mode = CHARMANDER_MODE_AUTO;
+			break;
 
-	case 0x0023:
-		if (raw & 0x0001)
-			charmander.p2p_unit = CHARMANDER_UNIT_INDEX;
-		else
-			charmander.p2p_unit = CHARMANDER_UNIT_DEGREE;
+		case 0x0023:
+			if (raw & 0x0001) charmander.p2p_unit = CHARMANDER_UNIT_INDEX;
+			else charmander.p2p_unit = CHARMANDER_UNIT_DEGREE;
 
-		break;
+			break;
 
-	case 0x0024:
-		charmander.p2p_target = s_raw;
-		charmander.mode = CHARMANDER_MODE_P2P;
-		break;
+		case 0x0024:
+			charmander.p2p_target = s_raw;
+			charmander.mode = CHARMANDER_MODE_P2P;
+			break;
 
-	case 0x0025:
-		if (raw & 0x0001)
-			charmander.soft_stop = CHARMANDER_STOP_ACTIVE;
-		else
-			charmander.soft_stop = CHARMANDER_STOP_RUNNING;
-		break;
+		case 0x0025:
+			if (raw & 0x0001) charmander.soft_stop = CHARMANDER_STOP_ACTIVE;
+			else charmander.soft_stop = CHARMANDER_STOP_RUNNING;
+			break;
 
-	default:
-		break;
+		default:
+			break;
 	}
 	memcpy(charmander.tx_reply_buf, f, 8);
 	HAL_UART_Transmit_DMA(&hlpuart1, charmander.tx_reply_buf, 8);
@@ -404,31 +386,21 @@ static void update_sensor_labels(void) {
 	uint8_t reed2 = (s >> 1) & 0x01;
 	uint8_t reed3 = (s >> 2) & 0x01;
 
-	if (reed1 && !reed2)
-		charmander.sensor_vertical = CHARMANDER_SENSOR_UP;
-	else if (!reed1 && reed2)
-		charmander.sensor_vertical = CHARMANDER_SENSOR_DOWN;
-	else
-		charmander.sensor_vertical = CHARMANDER_SENSOR_IDLE;
+	if (reed1 && !reed2) charmander.sensor_vertical = CHARMANDER_SENSOR_UP;
+	else if (!reed1 && reed2) charmander.sensor_vertical = CHARMANDER_SENSOR_DOWN;
+	else charmander.sensor_vertical = CHARMANDER_SENSOR_IDLE;
 
-	if (reed3)
-		charmander.sensor_jaw = CHARMANDER_SENSOR_CLOSED;
-	else
-		charmander.sensor_jaw = CHARMANDER_SENSOR_OPEN;
+	if (reed3) charmander.sensor_jaw = CHARMANDER_SENSOR_CLOSED;
+	else charmander.sensor_jaw = CHARMANDER_SENSOR_OPEN;
 }
 
 static void update_task_label(void) {
 	uint16_t t = charmander.task_raw;
-	if (t & 0x0001)
-		charmander.task = CHARMANDER_TASK_HOMING;
-	else if (t & 0x0002)
-		charmander.task = CHARMANDER_TASK_GO_PICK;
-	else if (t & 0x0004)
-		charmander.task = CHARMANDER_TASK_GO_PLACE;
-	else if (t & 0x0008)
-		charmander.task = CHARMANDER_TASK_GO_POINT;
-	else
-		charmander.task = CHARMANDER_TASK_IDLE;
+	if (t & 0x0001) charmander.task = CHARMANDER_TASK_HOMING;
+	else if (t & 0x0002) charmander.task = CHARMANDER_TASK_GO_PICK;
+	else if (t & 0x0004) charmander.task = CHARMANDER_TASK_GO_PLACE;
+	else if (t & 0x0008) charmander.task = CHARMANDER_TASK_GO_POINT;
+	else charmander.task = CHARMANDER_TASK_IDLE;
 }
 
 /* ─── Public helpers for application code ───────────────────────── */
@@ -466,10 +438,8 @@ static uint16_t crc16(const uint8_t *buf, uint16_t len) {
 	for (uint16_t i = 0; i < len; i++) {
 		crc ^= buf[i];
 		for (uint8_t j = 0; j < 8; j++) {
-			if (crc & 0x0001)
-				crc = (crc >> 1) ^ 0xA001;
-			else
-				crc >>= 1;
+			if (crc & 0x0001) crc = (crc >> 1) ^ 0xA001;
+			else crc >>= 1;
 		}
 	}
 	return crc;

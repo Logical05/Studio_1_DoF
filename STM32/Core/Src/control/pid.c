@@ -5,8 +5,8 @@
  *      Author: rajap
  */
 
-#include "pid.h"
-#include "useful.h"
+#include "control/pid.h"
+#include "shared/robot_math.h"
 
 void PID_Init(PID_TypeDef *pid, float kp, float ki, float kd, float max_output,
 bool anti_windup, float integral_limit) {
@@ -40,7 +40,7 @@ void PID_Calc(PID_TypeDef *pid, float setpoint, float process) {
 	pid->d_out = pid->kd * (pid->error[Error_NOW] - pid->error[Error_LAST]);
 
 	// Integral Limit
-	pid->i_out = clamp_max(pid->i_out + (pid->ki * pid->error[Error_NOW]),
+	pid->i_out = clampf_max(pid->i_out + (pid->ki * pid->error[Error_NOW]),
 		pid->integral_limit);
 
 	// Anti-Windup Clamp
@@ -52,7 +52,7 @@ void PID_Calc(PID_TypeDef *pid, float setpoint, float process) {
 		pid->i_out = 0.0f;
 	}
 
-	pid->output = clamp_max(pid->p_out + pid->i_out + pid->d_out, pid->max_output);
+	pid->output = clampf_max(pid->p_out + pid->i_out + pid->d_out, pid->max_output);
 
 	pid->error[Error_LAST] = pid->error[Error_NOW];
 }

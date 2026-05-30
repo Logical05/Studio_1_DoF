@@ -9,35 +9,23 @@
 #define INC_GRIPPER_H_
 
 #include <stdbool.h>
-#include "main.h"
-#include "useful.h"
+
+#include "config/pinmap.h"
 
 /* ============================================================================
  * Config
  * ========================================================================== */
 
-#define REED_ACTIVE_STATE     GPIO_PIN_RESET
+#define REED_ACTIVE_STATE GPIO_PIN_RESET
 
-#define GRIPPER_ON            GPIO_PIN_SET
-#define GRIPPER_OFF           GPIO_PIN_RESET
+#define GRIPPER_ON GPIO_PIN_SET
+#define GRIPPER_OFF GPIO_PIN_RESET
 
-#define GRIPPER_TIMEOUT_MS    2000
+#define GRIPPER_TIMEOUT_MS 2000
 
 /* ============================================================================
  * Types
  * ========================================================================== */
-
-typedef struct {
-	Pinout_t open_out;
-	Pinout_t close_out;
-
-	Pinout_t up_out;
-	Pinout_t down_out;
-
-	Pinout_t reed_close;
-	Pinout_t reed_up;
-	Pinout_t reed_down;
-} GripperPin_t;
 
 typedef enum {
 	GRIPPER_SEQ_IDLE = 0, GRIPPER_SEQ_PICK, GRIPPER_SEQ_PLACE
@@ -83,8 +71,6 @@ typedef struct {
 /* ============================================================================
  * Pin Mapping
  * ========================================================================== */
-
-extern const GripperPin_t gripper_pin;
 
 extern Gripper_t gripper;
 

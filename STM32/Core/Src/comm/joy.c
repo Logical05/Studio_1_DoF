@@ -5,7 +5,7 @@
  *      Author: kitth
  */
 
-#include "joy.h"
+#include "comm/joy.h"
 #include <string.h>
 #include <stdlib.h>
 

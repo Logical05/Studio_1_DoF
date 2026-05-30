@@ -12,7 +12,7 @@
 
 typedef enum {
 	Error_NOW, Error_LAST
-} Error_State;
+} ErrorState_t;
 
 typedef struct {
 	float kp;

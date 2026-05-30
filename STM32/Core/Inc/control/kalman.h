@@ -19,29 +19,29 @@
  * ========================================================= */
 
 typedef struct {
-	/* --- State vector --- */
-	float x[4];
+        /* --- State vector --- */
+        float x[4];
 
-	/* --- State transition matrix (4x4) --- */
-	float F[4][4];
+        /* --- State transition matrix (4x4) --- */
+        float F[4][4];
 
-	/* --- Input matrix --- */
-	float B[4];
+        /* --- Input matrix --- */
+        float B[4];
 
-	/* --- Observation matrix (row vector) --- */
-	float H[4];
+        /* --- Observation matrix (row vector) --- */
+        float H[4];
 
-	/* --- Process noise covariance (4x4 diagonal) --- */
-	float Q[4][4];
+        /* --- Process noise covariance (4x4 diagonal) --- */
+        float Q[4][4];
 
-	/* --- Measurement noise variance (scalar, H is a single row) --- */
-	float R;
+        /* --- Measurement noise variance (scalar, H is a single row) --- */
+        float R;
 
-	/* --- Error covariance (4x4) --- */
-	float P[4][4];
+        /* --- Error covariance (4x4) --- */
+        float P[4][4];
 
-	/* --- Kalman gain (last computed, for debug) --- */
-	float K[4];
+        /* --- Kalman gain (last computed, for debug) --- */
+        float K[4];
 
 } KF_TypeDef;
 
@@ -49,11 +49,13 @@ typedef struct {
  * API
  * ========================================================= */
 
+extern KF_TypeDef kf;
+
 /**
  * @brief  Generic initialisation (identity F, identity P, default Q/R).
  *         Usually called internally by KF_DCMotor_Init.
  */
-void KF_Init(KF_TypeDef *kf);
+void KF_Init(void);
 
 /**
  * @brief  Set per-state process noise diagonal.
@@ -65,8 +67,7 @@ void KF_Init(KF_TypeDef *kf);
  *                   Load torque is an unknown disturbance; a bigger Q lets
  *                   the filter track it without lagging.
  */
-void KF_SetQ(KF_TypeDef *kf, float q_theta, float q_omega, float q_current,
-		float q_load);
+void KF_SetQ(float q_theta, float q_omega, float q_current, float q_load);
 
 /**
  * @brief  Initialise the filter with DC motor physical parameters.
@@ -81,8 +82,8 @@ void KF_SetQ(KF_TypeDef *kf, float q_theta, float q_omega, float q_current,
  * @param Q    Base process noise scalar (load gets Q*10)
  * @param R    Measurement noise variance
  */
-void KF_DCMotor_Init(KF_TypeDef *kf, float dt, float J, float Bm, float Kt,
-		float Ke, float Rm, float L, float Q, float R);
+void KF_DCMotor_Init(float dt, float J, float Bm, float Kt, float Ke, float Rm,
+                     float L, float Q, float R);
 
 /**
  * @brief  Prediction step  —  call FIRST each cycle.
@@ -92,7 +93,7 @@ void KF_DCMotor_Init(KF_TypeDef *kf, float dt, float J, float Bm, float Kt,
  *
  * @param voltage  Applied motor voltage [V] (control output)
  */
-void KF_Predict(KF_TypeDef *kf, float voltage);
+void KF_Predict(float voltage);
 
 /**
  * @brief  Update step  —  call AFTER KF_Predict each cycle.
@@ -102,6 +103,6 @@ void KF_Predict(KF_TypeDef *kf, float voltage);
  *
  * @param measurement  Encoder position [rad]
  */
-void KF_Update(KF_TypeDef *kf, float measurement);
+void KF_Update(float measurement);
 
 #endif
