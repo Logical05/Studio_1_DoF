@@ -153,7 +153,7 @@ void Charmander_Tick(void) {
 	} else {
 		// Heartbeat still valid
 		charmander.heartbeat = CHARMANDER_HB_ALIVE;
-		charmander.hb_rx_status = CHARMANDER_RX_OK;
+		charmander.hb_rx_status = CHARMANDER_RX_GOT_HI;
 	}
 }
 
@@ -237,7 +237,7 @@ static void decode_write_frame(const uint8_t *f) {
 			charmander.hb_last_alive_ms = HAL_GetTick();
 
 			charmander.heartbeat = CHARMANDER_HB_ALIVE;
-			charmander.hb_rx_status = CHARMANDER_RX_OK;
+			charmander.hb_rx_status = CHARMANDER_RX_GOT_HI;
 
 		} else {
 

@@ -7,6 +7,7 @@
  *   - FC03 READ  frames  (PC → Robot query; robot replies with registers 0x00, 0x26–0x31)
  *   - Heartbeat exchange (Robot sends YA=22881, PC answers HI=18537 via write to 0x00)
  */
+/*change*/
 
 #ifndef CHARMANDER_H
 #define CHARMANDER_H
