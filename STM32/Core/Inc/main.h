@@ -57,14 +57,14 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define GP_OPEN_Pin GPIO_PIN_13
-#define GP_OPEN_GPIO_Port GPIOC
-#define SSR_TRIG_Pin GPIO_PIN_15
-#define SSR_TRIG_GPIO_Port GPIOC
 #define RCC_OSC_IN_Pin GPIO_PIN_0
 #define RCC_OSC_IN_GPIO_Port GPIOF
 #define RCC_OSC_OUT_Pin GPIO_PIN_1
 #define RCC_OSC_OUT_GPIO_Port GPIOF
+#define SSR_TRIG_Pin GPIO_PIN_0
+#define SSR_TRIG_GPIO_Port GPIOC
+#define GP_OPEN_Pin GPIO_PIN_1
+#define GP_OPEN_GPIO_Port GPIOC
 #define PROX_IN_Pin GPIO_PIN_3
 #define PROX_IN_GPIO_Port GPIOC
 #define LPUART1_TX_Pin GPIO_PIN_2
@@ -73,6 +73,10 @@ void Error_Handler(void);
 #define LPUART1_RX_GPIO_Port GPIOA
 #define LD2_Pin GPIO_PIN_5
 #define LD2_GPIO_Port GPIOA
+#define PS_TX_Pin GPIO_PIN_4
+#define PS_TX_GPIO_Port GPIOC
+#define PS_RX_Pin GPIO_PIN_5
+#define PS_RX_GPIO_Port GPIOC
 #define REED_DOWN_Pin GPIO_PIN_1
 #define REED_DOWN_GPIO_Port GPIOB
 #define REED_UP_Pin GPIO_PIN_2
@@ -87,10 +91,6 @@ void Error_Handler(void);
 #define ENCODER_A_GPIO_Port GPIOC
 #define ENCODER_B_Pin GPIO_PIN_7
 #define ENCODER_B_GPIO_Port GPIOC
-#define PS_TX_Pin GPIO_PIN_9
-#define PS_TX_GPIO_Port GPIOA
-#define PS_RX_Pin GPIO_PIN_10
-#define PS_RX_GPIO_Port GPIOA
 #define MOTOR_PWM_Pin GPIO_PIN_12
 #define MOTOR_PWM_GPIO_Port GPIOA
 #define GP_DOWN_Pin GPIO_PIN_15

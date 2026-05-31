@@ -12,25 +12,57 @@
 #include <stdint.h>
 
 typedef enum {
-	TRAJECTORY_DONE = 0, TRAJECTORY_WAIT, TRAJECTORY_RUN
+    TRAJECTORY_DONE = 0,
+    TRAJECTORY_WAIT,
+    TRAJECTORY_RUN
 } TrajectoryState_t;
 
 typedef struct {
-	const float *points;
+        float pos;
+        float vel;
+        float acc;
+} MotionState_t;
 
-	uint16_t num_points;
-	uint16_t current;
+typedef enum {
+    PROFILE_JERK_ONLY = 0,
+    PROFILE_NO_CRUISE,
+    PROFILE_FULL
+} ProfileType_t;
 
-	TrajectoryState_t state;
+typedef struct {
+        const float *points;
 
-	float q0;
-	float qf;
+        uint16_t num_points;
+        uint16_t current;
 
-	float vmax;
-	float amax;
+        TrajectoryState_t state;
 
-	float T;
-	float t;
+        float q0;
+        float qf;
+
+        float distance;
+        float direction;
+
+        float vmax;
+        float amax;
+        float jmax;
+
+        float t;
+
+        ProfileType_t profile;
+
+        float t1;
+        float t2;
+        float t3;
+        float t4;
+        float t5;
+        float t6;
+        float t7;
+
+        float total_time;
+
+        MotionState_t boundary[8];
+
 } Trajectory_t;
 
 extern Trajectory_t trajectory;
@@ -42,12 +74,14 @@ void Trajectory_Reset(void);
 void Trajectory_Update(float dt);
 
 void Trajectory_Start(const float *points, uint16_t count, float current_position,
-		float vmax, float amax);
+                      float vmax, float amax, float jmax);
 
 void Trajectory_Continue(void);
 
+void Trajectory_SetLimits(float vmax, float amax, float jmax);
+
 /* Status */
-bool Trajectory_IsFinished(void);
+bool              Trajectory_IsFinished(void);
 TrajectoryState_t Trajectory_GetState(void);
 
 /* Output */

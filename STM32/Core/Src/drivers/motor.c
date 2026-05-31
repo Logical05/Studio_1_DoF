@@ -47,7 +47,7 @@ void Motor_SetVoltage(float voltage) {
     /*
      * Convert voltage -> PWM
      */
-    float duty = fabsf(voltage) / MOTOR_MAX_VOLTAGE;
+    float duty = fabsf_fast(voltage) / MOTOR_MAX_VOLTAGE;
 
     uint16_t pwm = (uint16_t)(duty * 100.0f);
 

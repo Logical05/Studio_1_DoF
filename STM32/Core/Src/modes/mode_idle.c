@@ -9,6 +9,7 @@
 
 #include "control/control.h"
 #include "control/trajectory_manager.h"
+#include "comm/charmander.h"
 
 #include "drivers/qei.h"
 

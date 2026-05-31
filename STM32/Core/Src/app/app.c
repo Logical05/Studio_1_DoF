@@ -11,6 +11,7 @@
 #include "app/safety.h"
 #include "comm/joy.h"
 #include "control/joy_cmd_bridge.h"
+#include "comm/charmander.h"
 #include "comm/charmander_bridge.h"
 #include "config/pinmap.h"
 #include "control/control.h"
@@ -19,6 +20,7 @@
 #include "drivers/qei.h"
 #include "gpio.h"
 #include "usart.h"
+#include "modes/mode_sethome.h"
 
 void App_Init(void) {
 	Safety_Init();
@@ -59,11 +61,18 @@ void App_Update(void) {
 	Gripper_Update();
 
 	/*
+	 * Set home mode has special handling since it needs to run even in emergency
+	 */
+	if (charmander.mode == CHARMANDER_MODE_SET_HOME) {
+		Mode_SetHome_Update();
+	}
+
+	/*
 	 * Emergency handling
 	 */
 	if (Safety_IsEmergency()) {
 		Motor_Brake();
-		ModeManager_ForceIdle();
+		Mode_SetHome_Update();
 		return;
 	}
 

@@ -8,6 +8,8 @@
 #include "drivers/qei.h"
 
 #include "config/robot_config.h"
+#include "control/kalman.h"
+#include "drivers/motor.h"
 #include "shared/robot_math.h"
 #include "tim.h"
 
@@ -47,6 +49,18 @@ void QEI_UpdateISR(void) {
     qei.omega = dtheta / CONTROL_FAST_DT;
 
     /*
+     * Observer update
+     */
+    KF_Predict(Motor_GetVoltage());
+    KF_SetQ(KF_Q_T, KF_Q_O, KF_Q_C, KF_Q_L);
+    KF_Update(qei.theta);
+
+    qei.omega_filtered = KF_GetOmega();
+    qei.alpha_estimate =
+        (MOTOR_KT * KF_GetCurrent() - MOTOR_B * KF_GetOmega() - KF_GetLoadTorque()) /
+        MOTOR_J;
+
+    /*
      * Store
      */
     qei.prev = qei.now;
@@ -56,6 +70,7 @@ void QEI_Reset(void) {
     qei.theta          = 0.0f;
     qei.omega          = 0.0f;
     qei.omega_filtered = 0.0f;
+    qei.alpha_estimate = 0.0f;
 
     qei.now = __HAL_TIM_GET_COUNTER(&htim8);
 
@@ -67,3 +82,5 @@ float QEI_GetTheta(void) { return qei.theta; }
 float QEI_GetOmega(void) { return qei.omega; }
 
 float QEI_GetFilteredOmega(void) { return qei.omega_filtered; }
+
+float QEI_GetEstimateAlpha(void) { return qei.alpha_estimate; }

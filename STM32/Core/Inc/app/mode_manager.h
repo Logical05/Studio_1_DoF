@@ -12,6 +12,4 @@ void ModeManager_Init(void);
 
 void ModeManager_Update(void);
 
-void ModeManager_ForceIdle(void);
-
 #endif /* INC_APP_MODE_MANAGER_H_ */

@@ -22,48 +22,50 @@
 
 #include "control/joy_cmd_bridge.h"
 
-#include <stdbool.h>
-#include <stdlib.h>
-#include <math.h>
 #include "app/safety.h"
 #include "comm/charmander.h"
 #include "comm/joy.h"
 #include "config/robot_config.h"
+#include "control/control.h"
 #include "drivers/motor.h"
+#include "drivers/qei.h"
+
+#include <math.h>
+#include <stdlib.h>
 
 /* ============================================================
  * Private defines
  * ============================================================ */
 
 /* Degrees per jog step for L2 / R2 */
-#define JOY_CMD_JOG_STEP_DEG        10
+#define JOY_CMD_JOG_STEP_DEG 10
 
 /* Slew rate: max voltage change per Update() call (~10ms tick assumed).
  * Tune: increase if feels sluggish, decrease if still jittery. */
-#define JOY_CMD_SLEW_RATE           0.15f   /* Volts per tick */
+#define JOY_CMD_SLEW_RATE 0.15f /* Volts per tick */
 
 /* Hysteresis: ignore knob movement smaller than this (in raw units out of ±127).
  * Tune: increase if jittery, decrease if unresponsive to small moves. */
-#define JOY_CMD_HYSTERESIS          8
+#define JOY_CMD_HYSTERESIS 8
 
 /* Minimum stick magnitude to bother computing angle (avoids noise at center) */
-#define JOY_CMD_MAGNITUDE_MIN       20
+#define JOY_CMD_MAGNITUDE_MIN 20
 
 /* Voltage limits */
-#define JOY_CMD_VOLT_MIN            3.0f
-#define JOY_CMD_VOLT_CENTER         6.5f
-#define JOY_CMD_VOLT_MAX            10.0f
+#define JOY_CMD_VOLT_MIN    (-6.5f)
+#define JOY_CMD_VOLT_CENTER (0.0f)
+#define JOY_CMD_VOLT_MAX    (6.5f)
 
 /* ============================================================
  * Private state
  * ============================================================ */
-static JoyButton_t _prev_buttons    = JOY_NONE;
-static bool        _joy_in_use      = false;
+static JoyButton_t _prev_buttons = JOY_NONE;
+static bool        _joy_in_use   = false;
 
-static float       _target_voltage  = JOY_CMD_VOLT_CENTER;
-static float       _output_voltage  = JOY_CMD_VOLT_CENTER;
-static int16_t     _last_raw_x      = 0;
-static int16_t     _last_raw_y      = 0;
+static float   _target_voltage = JOY_CMD_VOLT_CENTER;
+static float   _output_voltage = JOY_CMD_VOLT_CENTER;
+static int16_t _last_raw_x     = 0;
+static int16_t _last_raw_y     = 0;
 
 /* ============================================================
  * Private helpers
@@ -80,46 +82,31 @@ static int16_t     _last_raw_y      = 0;
  * atan2(x, -y) gives 0 when pointing up, +90 when right, -90 when left.
  * We clamp to +/-90 so the useful range is only the top half of the circle.
  */
-static float _KnobToVoltage_Angle(int16_t raw_x, int16_t raw_y)
-{
-    /* Check if stick is pushed far enough to get a reliable angle */
-    float mag = sqrtf((float)(raw_x * raw_x) + (float)(raw_y * raw_y));
-    if (mag < JOY_CMD_MAGNITUDE_MIN) {
-        return _target_voltage;
+static float _KnobToVoltage_Angle(int16_t raw_x, int16_t raw_y) {
+    const int32_t mag_sq = (int32_t)raw_x * raw_x + (int32_t)raw_y * raw_y;
+
+    if (mag_sq < (JOY_CMD_MAGNITUDE_MIN * JOY_CMD_MAGNITUDE_MIN)) {
+        return 0.0f;
     }
 
-    float angle_rad = atan2f((float)raw_x, -(float)raw_y);
-    float angle_deg = angle_rad * (180.0f / 3.14159265f);
+    float angle_deg = atan2f((float)raw_x, -(float)raw_y) * (180.0f / 3.14159265f);
 
-    /* Clamp to +/-90 deg — only top half of circle is usable */
-    if (angle_deg >  90.0f) angle_deg =  90.0f;
-    if (angle_deg < -90.0f) angle_deg = -90.0f;
-
-    /* Map -90 deg -> +90 deg to 0.0 -> 1.0 */
-    float pct = (angle_deg + 90.0f) / 180.0f;
-
-    float voltage;
-    if (pct <= 0.5f) {
-        /* Left half (-90 -> 0 deg): 3.0V -> 6.5V */
-        float sub_pct = pct / 0.5f;
-        voltage = JOY_CMD_VOLT_MIN + sub_pct * (JOY_CMD_VOLT_CENTER - JOY_CMD_VOLT_MIN);
-    } else {
-        /* Right half (0 -> +90 deg): 6.5V -> 10.0V */
-        float sub_pct = (pct - 0.5f) / 0.5f;
-        voltage = JOY_CMD_VOLT_CENTER + sub_pct * (JOY_CMD_VOLT_MAX - JOY_CMD_VOLT_CENTER);
+    if (angle_deg > 90.0f) {
+        angle_deg = 90.0f;
+    } else if (angle_deg < -90.0f) {
+        angle_deg = -90.0f;
     }
 
-    return voltage;
+    return angle_deg * (JOY_CMD_VOLT_MAX / 90.0f);
 }
 
 /*
  * Slew rate limiter — smooths voltage changes to avoid sudden jumps.
  * Called every tick. Returns the new smoothed output voltage.
  */
-static float _SlewVoltage(float target, float current)
-{
+static float _SlewVoltage(float target, float current) {
     float diff = target - current;
-    if (diff >  JOY_CMD_SLEW_RATE) diff =  JOY_CMD_SLEW_RATE;
+    if (diff > JOY_CMD_SLEW_RATE) diff = JOY_CMD_SLEW_RATE;
     if (diff < -JOY_CMD_SLEW_RATE) diff = -JOY_CMD_SLEW_RATE;
     return current + diff;
 }
@@ -127,25 +114,20 @@ static float _SlewVoltage(float target, float current)
 /*
  * Returns 1 on the rising edge of a button (just pressed this tick).
  */
-static inline uint8_t _Rising(JoyButton_t btn, JoyButton_t cur, JoyButton_t prev)
-{
+static inline uint8_t _Rising(JoyButton_t btn, JoyButton_t cur, JoyButton_t prev) {
     return ((cur & btn) && !(prev & btn)) ? 1u : 0u;
 }
 
 /*
  * Returns true if the motor axis is currently claimed by the knob.
  */
-static inline bool _JoyInUse(void)
-{
-    return _joy_in_use;
-}
+bool JoyInUse(void) { return _joy_in_use; }
 
 /* ============================================================
  * Public API
  * ============================================================ */
 
-void JoyCmdBridge_Init(void)
-{
+void JoyCmdBridge_Init(void) {
     _prev_buttons   = JOY_NONE;
     _joy_in_use     = false;
     _target_voltage = JOY_CMD_VOLT_CENTER;
@@ -154,12 +136,11 @@ void JoyCmdBridge_Init(void)
     _last_raw_y     = 0;
 }
 
-void JoyCmdBridge_Update(void)
-{
+void JoyCmdBridge_Update(void) {
     /* ── 0. Snapshot live state ──────────────────────────────────── */
-    const JoyState_t *joy = JOY_GetState();
-    JoyButton_t cur  = joy->buttons;
-    JoyButton_t prev = _prev_buttons;
+    const JoyState_t *joy  = JOY_GetState();
+    JoyButton_t       cur  = joy->buttons;
+    JoyButton_t       prev = _prev_buttons;
 
     int16_t knob_x = joy->right.x;
     int16_t knob_y = joy->right.y;
@@ -167,8 +148,7 @@ void JoyCmdBridge_Update(void)
     /* ── 1. Square -> Emergency latch ────────────────────────────── */
     if (_Rising(JOY_SQUARE, cur, prev)) {
         Motor_SetVoltage(0.0f);
-        charmander.soft_stop = CHARMANDER_STOP_ACTIVE;
-        Charmander_SetEmergency(1);
+        Safety_SetLatch();
         _joy_in_use     = false;
         _output_voltage = JOY_CMD_VOLT_CENTER;
         _target_voltage = JOY_CMD_VOLT_CENTER;
@@ -176,16 +156,16 @@ void JoyCmdBridge_Update(void)
         return;
     }
 
-    /* ── 2. X (cross) -> Soft-stop ───────────────────────────────── */
-    if (_Rising(JOY_XMARK, cur, prev)) {
-        Motor_SetVoltage(0.0f);
-        charmander.soft_stop = CHARMANDER_STOP_ACTIVE;
-        _joy_in_use     = false;
-        _output_voltage = JOY_CMD_VOLT_CENTER;
-        _target_voltage = JOY_CMD_VOLT_CENTER;
-        _prev_buttons   = cur;
-        return;
-    }
+    //    /* ── 2. X (cross) -> Soft-stop ───────────────────────────────── */
+    //    if (_Rising(JOY_XMARK, cur, prev)) {
+    //        Motor_SetVoltage(0.0f);
+    //        charmander.soft_stop = CHARMANDER_STOP_ACTIVE;
+    //        _joy_in_use          = false;
+    //        _output_voltage      = JOY_CMD_VOLT_CENTER;
+    //        _target_voltage      = JOY_CMD_VOLT_CENTER;
+    //        _prev_buttons        = cur;
+    //        return;
+    //    }
 
     /* ── 3. Right knob -> Direct motor voltage ───────────────────── */
     if (!Safety_IsEmergency()) {
@@ -207,8 +187,8 @@ void JoyCmdBridge_Update(void)
 
         _joy_in_use     = true;
         charmander.mode = CHARMANDER_MODE_IDLE;
-        Motor_SetVoltage(_output_voltage);
-
+        //		Motor_SetVoltage(_output_voltage);
+        Control_SetReference(QEI_GetTheta(), 0.0f, 0.0f);
     } else {
         /* Emergency: zero output and reset knob state */
         _joy_in_use     = false;
@@ -219,19 +199,19 @@ void JoyCmdBridge_Update(void)
     }
 
     /* ── 4. Start -> Home mode ───────────────────────────────────── */
-    if (_Rising(JOY_START, cur, prev) && !_JoyInUse()) {
+    if (_Rising(JOY_START, cur, prev) && !JoyInUse()) {
         Motor_SetVoltage(0.0f);
         charmander.mode = CHARMANDER_MODE_HOME;
     }
 
     /* ── 5. Select -> Set-Home mode ──────────────────────────────── */
-    if (_Rising(JOY_SELECT, cur, prev) && !_JoyInUse()) {
+    if (_Rising(JOY_SELECT, cur, prev) && !JoyInUse()) {
         Motor_SetVoltage(0.0f);
         charmander.mode = CHARMANDER_MODE_SET_HOME;
     }
 
     /* ── 6. L2 -> Jog CCW 10 deg ─────────────────────────────────── */
-    if (_Rising(JOY_L2, cur, prev) && !_JoyInUse()) {
+    if (_Rising(JOY_L2, cur, prev) && !JoyInUse()) {
         Motor_SetVoltage(0.0f);
         charmander.mode        = CHARMANDER_MODE_JOG;
         charmander.jog_degrees = (int16_t)(JOY_CMD_JOG_STEP_DEG);
@@ -239,7 +219,7 @@ void JoyCmdBridge_Update(void)
     }
 
     /* ── 7. R2 -> Jog CW 10 deg ──────────────────────────────────── */
-    if (_Rising(JOY_R2, cur, prev) && !_JoyInUse()) {
+    if (_Rising(JOY_R2, cur, prev) && !JoyInUse()) {
         Motor_SetVoltage(0.0f);
         charmander.mode        = CHARMANDER_MODE_JOG;
         charmander.jog_degrees = (int16_t)(-JOY_CMD_JOG_STEP_DEG);

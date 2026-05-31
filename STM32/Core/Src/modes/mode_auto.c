@@ -21,131 +21,132 @@
 
 static float auto_points[AUTO_MAX_POINTS];
 
-static bool auto_started   = false;
+static bool auto_started = false;
 static bool waiting_action = false;
 
 static uint16_t current = 0;
 
 static void build_auto_points(uint16_t count) {
-    float theta = QEI_GetTheta();
+	float theta = QEI_GetTheta();
 
-    for (uint16_t i = 0; i < count; i++) {
-        int16_t slot = charmander.pp_slots[i];
+	for (uint16_t i = 0; i < count; i++) {
+		int16_t slot = charmander.pp_slots[i];
 
-        bool cw = (slot < 0);
+		bool cw = (slot < 0);
 
-        float target = INDEX_TO_RAD(abs(slot));
+		float target = INDEX_TO_RAD(abs(slot));
 
-        float now = wrap_2pi(theta);
+		float now = wrap_2pi(theta);
 
-        if (cw && (target > now)) {
-            target -= TWO_PI_F;
-        } else if (target < now) {
-            target += TWO_PI_F;
-        }
+		if (cw && (target > now)) {
+			target -= TWO_PI_F;
+		} else if (target < now) {
+			target += TWO_PI_F;
+		}
 
-        auto_points[i] = theta + (target - now);
-    }
+		auto_points[i] = theta + (target - now);
+	}
 }
 
 void Mode_Auto_Update(void) {
-    uint16_t count = charmander.pp_pair_count * 2;
+	uint16_t count = charmander.pp_pair_count * 2;
 
-    /*
-     * Invalid count
-     */
+	/*
+	 * Invalid count
+	 */
 
-    if (count == 0) {
-        auto_started   = false;
-        waiting_action = false;
+	if (count == 0) {
+		auto_started = false;
+		waiting_action = false;
 
-        charmander.mode = CHARMANDER_MODE_IDLE;
+		charmander.mode = CHARMANDER_MODE_IDLE;
 
-        return;
-    }
+		return;
+	}
 
-    if (count > AUTO_MAX_POINTS) {
-        count = AUTO_MAX_POINTS;
-    }
+	if (count > AUTO_MAX_POINTS) {
+		count = AUTO_MAX_POINTS;
+	}
 
-    /*
-     * Start trajectory once
-     */
+	/*
+	 * Start trajectory once
+	 */
 
-    if (!auto_started) {
-        build_auto_points(count);
+	if (!auto_started) {
+		build_auto_points(count);
 
-        Trajectory_Start(auto_points, count, QEI_GetTheta(), TRAJ_VMAX, TRAJ_AMAX);
+		Trajectory_Start(auto_points, count, QEI_GetTheta(), TRAJ_PICK_VMAX,
+			TRAJ_PICK_AMAX, TRAJ_PICK_JMAX);
 
-        auto_started   = true;
-        waiting_action = false;
+		auto_started = true;
+		waiting_action = false;
 
-        Charmander_SetTask(0x0002);
-    }
+		Charmander_SetTask(0x0002);
+	}
 
-    /*
-     * Motion reference
-     */
+	/*
+	 * Motion reference
+	 */
 
-    Control_SetReference(Trajectory_GetPosition(), Trajectory_GetVelocity(),
-                         Trajectory_GetAcceleration());
+	Control_SetReference(Trajectory_GetPosition(), Trajectory_GetVelocity(),
+		Trajectory_GetAcceleration());
 
-    /*
-     * Waypoint reached
-     */
+	/*
+	 * Waypoint reached
+	 */
 
-    if (Trajectory_GetState() == TRAJECTORY_WAIT) {
+	if (Trajectory_GetState() == TRAJECTORY_WAIT) {
 
-        if (!waiting_action) {
+		if (!waiting_action) {
 
-            waiting_action = true;
+			waiting_action = true;
 
-            /*
-             * Even index = PICK
-             * Odd index  = PLACE
-             */
+			/*
+			 * Even index = PICK
+			 * Odd index  = PLACE
+			 */
 
-            if (charmander.gripper_auto == CHARMANDER_ENABLE) {
+			if (charmander.gripper_auto == CHARMANDER_ENABLE) {
+				if ((current & 1U) == 0U) Gripper_Command(GRIPPER_CMD_PICK);
+				else Gripper_Command(GRIPPER_CMD_PLACE);
+			}
+		}
 
-                if ((current & 1U) == 0U) {
+		/*
+		 * Continue after gripper done
+		 */
 
-                    Gripper_Command(GRIPPER_CMD_PICK);
+		if (!Gripper_IsBusy()) {
 
-                    Charmander_SetTask(0x0002);
-                } else {
+			waiting_action = false;
 
-                    Gripper_Command(GRIPPER_CMD_PLACE);
+			current++;
 
-                    Charmander_SetTask(0x0004);
-                }
-            }
-        }
+			if ((current & 1U) == 0U) {
+				Charmander_SetTask(0x0002);
+				Trajectory_SetLimits(TRAJ_PICK_VMAX, TRAJ_PICK_AMAX, TRAJ_PICK_JMAX);
 
-        /*
-         * Continue after gripper done
-         */
+			} else {
+				Charmander_SetTask(0x0004);
+				Trajectory_SetLimits(TRAJ_PLACE_VMAX, TRAJ_PLACE_AMAX,
+				TRAJ_PLACE_JMAX);
+			}
 
-        if (!Gripper_IsBusy()) {
+			Trajectory_Continue();
+		}
+	}
 
-            waiting_action = false;
+	/*
+	 * Sequence completed
+	 */
 
-            current++;
+	if (Trajectory_IsFinished()) {
 
-            Trajectory_Continue();
-        }
-    }
+		auto_started = false;
+		waiting_action = false;
 
-    /*
-     * Sequence completed
-     */
+		current = 0;
 
-    if (Trajectory_IsFinished()) {
-
-        auto_started   = false;
-        waiting_action = false;
-
-        current = 0;
-
-        charmander.mode = CHARMANDER_MODE_IDLE;
-    }
+		charmander.mode = CHARMANDER_MODE_IDLE;
+	}
 }

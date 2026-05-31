@@ -8,6 +8,8 @@
 #ifndef INC_COMM_JOY_CMD_BRIDGE_H_
 #define INC_COMM_JOY_CMD_BRIDGE_H_
 
+#include <stdbool.h>
+
 /**
  * @brief  Initialise internal state (call once, after JOY_Init).
  */
@@ -27,5 +29,7 @@ void JoyCmdBridge_Init(void);
  *           ...
  */
 void JoyCmdBridge_Update(void);
+
+bool JoyInUse(void);
 
 #endif /* INC_COMM_JOY_CMD_BRIDGE_H_ */

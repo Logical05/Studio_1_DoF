@@ -67,7 +67,6 @@ float Control_GetReferenceVelocity(void) { return reference.velocity; }
 float Control_GetReferenceAcceleration(void) { return reference.acceleration; }
 
 void Control_UpdateFastISR(void) {
-    float theta = QEI_GetTheta();
     float omega = QEI_GetFilteredOmega();
 
     /*
@@ -83,7 +82,7 @@ void Control_UpdateFastISR(void) {
     /*
      * Disturbance observer
      */
-    float tau_disturb = kf.x[3];
+    float tau_disturb = KF_GetLoadTorque();
     float v_disturb   = -(MOTOR_R / MOTOR_KT) * tau_disturb;
 
     /*
@@ -91,15 +90,6 @@ void Control_UpdateFastISR(void) {
      */
     float voltage = velocity_pid.output + v_ff + v_disturb;
     Motor_SetVoltage(voltage);
-
-    /*
-     * Observer update
-     */
-    KF_Predict(Motor_GetVoltage());
-    KF_SetQ(KF_Q_T, KF_Q_O, KF_Q_C, KF_Q_L);
-    KF_Update(theta);
-
-    qei.omega_filtered = kf.x[1];
 }
 
 void Control_UpdateSlowISR(void) {

@@ -10,13 +10,16 @@
 #include "comm/charmander.h"
 #include "control/control.h"
 #include "control/trajectory_manager.h"
+#include "drivers/motor.h"
 #include "drivers/qei.h"
 
 void Mode_SetHome_Update(void) {
+    Motor_Brake();
+
     /*
-     * Reset encoder position
+     * Hold zero position
      */
-    QEI_Reset();
+    Control_SetReference(0.0f, 0.0f, 0.0f);
 
     /*
      * Reset controller states
@@ -24,14 +27,14 @@ void Mode_SetHome_Update(void) {
     Control_Reset();
 
     /*
+     * Reset encoder position
+     */
+    QEI_Reset();
+
+    /*
      * Clear trajectory state
      */
     Trajectory_Reset();
-
-    /*
-     * Hold zero position
-     */
-    Control_SetReference(0.0f, 0.0f, 0.0f);
 
     /*
      * Return to idle

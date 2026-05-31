@@ -105,4 +105,9 @@ void KF_Predict(float voltage);
  */
 void KF_Update(float measurement);
 
+float KF_GetTheta(void);
+float KF_GetOmega(void);
+float KF_GetCurrent(void);
+float KF_GetLoadTorque(void);
+
 #endif

@@ -17,6 +17,7 @@ typedef struct {
         float theta;
         float omega;
         float omega_filtered;
+        float alpha_estimate;
 } QEI_State_t;
 
 extern QEI_State_t qei;
@@ -32,5 +33,7 @@ float QEI_GetTheta(void);
 float QEI_GetOmega(void);
 
 float QEI_GetFilteredOmega(void);
+
+float QEI_GetEstimateAlpha(void);
 
 #endif /* INC_DRIVERS_QEI_H_ */

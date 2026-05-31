@@ -427,3 +427,14 @@ void KF_Update(float measurement) {
 
     kf.P[3][2] = kf.P[2][3];
 }
+
+/* =========================================================
+ * Getters for state estimates
+ * ========================================================= */
+float KF_GetTheta(void) { return kf.x[0]; }
+
+float KF_GetOmega(void) { return kf.x[1]; }
+
+float KF_GetCurrent(void) { return kf.x[2]; }
+
+float KF_GetLoadTorque(void) { return kf.x[3]; }

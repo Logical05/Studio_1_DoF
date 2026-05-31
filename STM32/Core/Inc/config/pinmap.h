@@ -17,7 +17,7 @@
  */
 
 #define PIN_SSR_TRIG_PORT          GPIOC
-#define PIN_SSR_TRIG_PIN           GPIO_PIN_15
+#define PIN_SSR_TRIG_PIN           GPIO_PIN_0
 
 /*
  * ============================================================
@@ -71,7 +71,7 @@
  */
 
 #define GRIPPER_OPEN_OUT_PORT GPIOC
-#define GRIPPER_OPEN_OUT_PIN GPIO_PIN_13
+#define GRIPPER_OPEN_OUT_PIN GPIO_PIN_1
 
 #define GRIPPER_CLOSE_OUT_PORT GPIOB
 #define GRIPPER_CLOSE_OUT_PIN GPIO_PIN_14

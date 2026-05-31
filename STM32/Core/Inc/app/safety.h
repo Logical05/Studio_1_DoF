@@ -19,6 +19,8 @@ bool Safety_IsEmergency(void);
 
 void Safety_ClearLatch(void);
 
+void Safety_SetLatch(void);
+
 void Safety_EXTI_Callback(uint16_t pin);
 
 #endif /* INC_APP_SAFETY_H_ */
