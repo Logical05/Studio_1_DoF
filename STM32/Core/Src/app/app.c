@@ -44,16 +44,16 @@ void App_Update(void) {
 	Safety_Update();
 
 	/*
-	 * Joystick input
-	 */
-	JOY_Update();
-	JoyCmdBridge_Update();
-
-	/*
 	 * Push feedback to Modbus
 	 */
 	CharmanderBridge_Update();
 	CharmanderBridge_UpdateFeedback();
+
+	/*
+	 * Joystick input
+	 */
+	JOY_Update();
+	JoyCmdBridge_Update();
 
 	/*
 	 * Update gripper FSM

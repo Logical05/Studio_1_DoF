@@ -16,7 +16,7 @@
  * Config
  * ========================================================================== */
 
-#define REED_ACTIVE_STATE GPIO_PIN_RESET
+#define REED_ACTIVE_STATE GPIO_PIN_SET
 
 #define GRIPPER_ON GPIO_PIN_SET
 #define GRIPPER_OFF GPIO_PIN_RESET

@@ -51,7 +51,6 @@ void Control_Init(void) {
 void Control_Reset(void) {
     PID_Reset(&position_pid);
     PID_Reset(&velocity_pid);
-    Control_SetReference(0.0f, 0.0f, 0.0f);
 }
 
 void Control_SetReference(float position, float velocity, float acceleration) {
