@@ -209,6 +209,7 @@ void JoyCmdBridge_Update(void) {
 			/* Continue slewing every tick */
 			_output_voltage = _SlewVoltage(_target_voltage, _output_voltage);
 
+<<<<<<< HEAD
 //    /* ── 8. Up button -> Jaw OPEN ────────────────────────────────── */
 //    if (_Rising(JOY_UP, cur, prev)) {
 //        charmander.gripper_jaw = CHARMANDER_JAW_OPEN;
@@ -238,6 +239,7 @@ void JoyCmdBridge_Update(void) {
 //    if (_Rising(JOY_R1, cur, prev)) {
 //        charmander.gripper_seq = CHARMANDER_SEQ_PLACE;
 //    }
+=======
 			Motor_SetVoltage(_output_voltage);
 
 			charmander.mode = CHARMANDER_MODE_IDLE;
@@ -251,6 +253,7 @@ void JoyCmdBridge_Update(void) {
 			_output_voltage = _SlewVoltage(_target_voltage, _output_voltage);
 
 //			Motor_SetVoltage(_output_voltage);
+>>>>>>> 6c3e9961aa3bd8d11a4846c4cdca1c3962116e18
 
 			_last_raw_x = knob_x;
 			_last_raw_y = knob_y;

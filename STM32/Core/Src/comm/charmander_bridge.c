@@ -36,6 +36,7 @@ void CharmanderBridge_Update(void) {
 	 */
 	Charmander_Tick();
 
+<<<<<<< HEAD
 //	/*
 //	 * Vertical axis
 //	 */
@@ -74,6 +75,7 @@ void CharmanderBridge_Update(void) {
 //
 //		charmander.gripper_seq = CHARMANDER_SEQ_NONE;
 //	}
+=======
 	/*
 	 * Vertical axis
 	 */
@@ -112,6 +114,7 @@ void CharmanderBridge_Update(void) {
 
 		charmander.gripper_seq = CHARMANDER_SEQ_NONE;
 	}
+>>>>>>> 6c3e9961aa3bd8d11a4846c4cdca1c3962116e18
 }
 
 void CharmanderBridge_UpdateFeedback(void) {
@@ -120,8 +123,11 @@ void CharmanderBridge_UpdateFeedback(void) {
 	 */
 	float position_deg = RAD_TO_DEG(QEI_GetTheta());
 	float velocity_dps = RAD_TO_DEG(QEI_GetFilteredOmega());
+<<<<<<< HEAD
 	float acceleration_dps2 = 0.0f;
+=======
 	float acceleration_dps2 = RAD_TO_DEG(QEI_GetEstimateAlpha());
+>>>>>>> 6c3e9961aa3bd8d11a4846c4cdca1c3962116e18
 
 	Charmander_SetMotion(position_deg, velocity_dps, acceleration_dps2);
 
@@ -134,15 +140,18 @@ void CharmanderBridge_UpdateFeedback(void) {
 	 * Gripper sensor state
 	 */
 	uint16_t sensors = 0;
+<<<<<<< HEAD
 	if (Gripper_IsUp())
 		sensors |= (1 << 0);
 	if (Gripper_IsDown())
 		sensors |= (1 << 1);
 	if (Gripper_IsClosed())
 		sensors |= (1 << 2);
+=======
 	if (Gripper_IsUp()) sensors |= (1 << 0);
 	if (Gripper_IsDown()) sensors |= (1 << 1);
 	if (Gripper_IsClosed()) sensors |= (1 << 2);
+>>>>>>> 6c3e9961aa3bd8d11a4846c4cdca1c3962116e18
 	Charmander_SetSensors(sensors);
 }
 
@@ -155,6 +164,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 		HAL_UART_Receive_IT(&hlpuart1, &rx_byte, 1);
 	}
 	JOY_RxCpltCallback(huart);
+<<<<<<< HEAD
 }
 
 /* FDCAN callback*/
@@ -162,4 +172,6 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 	if (hfdcan->Instance == FDCAN1) {
 		AICAN_ProcessInterrupt(hfdcan, RxFifo0ITs);
 	}
+=======
+>>>>>>> 6c3e9961aa3bd8d11a4846c4cdca1c3962116e18
 }
