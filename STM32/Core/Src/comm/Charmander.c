@@ -257,28 +257,28 @@ static void decode_write_frame(const uint8_t *f) {
 			else charmander.mode = CHARMANDER_MODE_IDLE;
 			break;
 
-		case 0x0002:
-			charmander.gripper_cmd_raw = raw;
-			if (raw & 0x0001) charmander.gripper_vertical = CHARMANDER_VERTICAL_DOWN;
-			else if (raw == 0x0000) charmander.gripper_vertical =
-					CHARMANDER_VERTICAL_UP;
-			else charmander.gripper_vertical = CHARMANDER_VERTICAL_IDLE;
-
-			if (raw & 0x0002) {
-				charmander.gripper_jaw = CHARMANDER_JAW_OPEN;
-			} else if (raw & 0x0004) {
-				charmander.gripper_jaw = CHARMANDER_JAW_CLOSE;
-			} else {
-				charmander.gripper_jaw = CHARMANDER_JAW_IDLE;
-			}
-			break;
-
-		case 0x0003:
-			charmander.gripper_seq_raw = raw;
-			if (raw & 0x0001) charmander.gripper_seq = CHARMANDER_SEQ_PICK;
-			else if (raw & 0x0002) charmander.gripper_seq = CHARMANDER_SEQ_PLACE;
-			else charmander.gripper_seq = CHARMANDER_SEQ_NONE;
-			break;
+//		case 0x0002:
+//			charmander.gripper_cmd_raw = raw;
+//			if (raw & 0x0001) charmander.gripper_vertical = CHARMANDER_VERTICAL_DOWN;
+//			else if (raw == 0x0000) charmander.gripper_vertical =
+//					CHARMANDER_VERTICAL_UP;
+//			else charmander.gripper_vertical = CHARMANDER_VERTICAL_IDLE;
+//
+//			if (raw & 0x0002) {
+//				charmander.gripper_jaw = CHARMANDER_JAW_OPEN;
+//			} else if (raw & 0x0004) {
+//				charmander.gripper_jaw = CHARMANDER_JAW_CLOSE;
+//			} else {
+//				charmander.gripper_jaw = CHARMANDER_JAW_IDLE;
+//			}
+//			break;
+//
+//		case 0x0003:
+//			charmander.gripper_seq_raw = raw;
+//			if (raw & 0x0001) charmander.gripper_seq = CHARMANDER_SEQ_PICK;
+//			else if (raw & 0x0002) charmander.gripper_seq = CHARMANDER_SEQ_PLACE;
+//			else charmander.gripper_seq = CHARMANDER_SEQ_NONE;
+//			break;
 
 		case 0x0004:
 			charmander.gripper_auto_raw = raw;

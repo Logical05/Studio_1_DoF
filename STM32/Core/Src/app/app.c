@@ -20,7 +20,11 @@
 #include "drivers/qei.h"
 #include "gpio.h"
 #include "usart.h"
+<<<<<<< HEAD
+#include "comm/aican.h"
+=======
 #include "modes/mode_sethome.h"
+>>>>>>> 6c3e9961aa3bd8d11a4846c4cdca1c3962116e18
 
 void App_Init(void) {
 	Safety_Init();
@@ -44,6 +48,17 @@ void App_Update(void) {
 	Safety_Update();
 
 	/*
+<<<<<<< HEAD
+	 * Joystick input
+	 */
+	JOY_Update();
+	JoyCmdBridge_Update();
+
+	AICAN_Update();
+
+	/*
+=======
+>>>>>>> 6c3e9961aa3bd8d11a4846c4cdca1c3962116e18
 	 * Push feedback to Modbus
 	 */
 	CharmanderBridge_Update();
