@@ -92,12 +92,9 @@ int main(void)
 	HAL_TIM_Base_Start_IT(&htim7);
 
 	App_Init();
-<<<<<<< HEAD
 	AICAN_Init(&hfdcan1);
 	/* USER CODE END 2 */
-=======
   /* USER CODE END 2 */
->>>>>>> 6c3e9961aa3bd8d11a4846c4cdca1c3962116e18
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
