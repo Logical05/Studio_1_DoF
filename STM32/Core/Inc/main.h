@@ -63,8 +63,6 @@ void Error_Handler(void);
 #define RCC_OSC_OUT_GPIO_Port GPIOF
 #define SSR_TRIG_Pin GPIO_PIN_0
 #define SSR_TRIG_GPIO_Port GPIOC
-#define GP_OPEN_Pin GPIO_PIN_1
-#define GP_OPEN_GPIO_Port GPIOC
 #define PROX_IN_Pin GPIO_PIN_3
 #define PROX_IN_GPIO_Port GPIOC
 #define LPUART1_TX_Pin GPIO_PIN_2
@@ -83,7 +81,9 @@ void Error_Handler(void);
 #define REED_UP_GPIO_Port GPIOB
 #define MOTOR_DIR_Pin GPIO_PIN_11
 #define MOTOR_DIR_GPIO_Port GPIOB
-#define GP_CLOSE_Pin GPIO_PIN_14
+#define GP_OPEN_Pin GPIO_PIN_12
+#define GP_OPEN_GPIO_Port GPIOB
+#define GP_CLOSE_Pin GPIO_PIN_13
 #define GP_CLOSE_GPIO_Port GPIOB
 #define REED_CLOSE_Pin GPIO_PIN_15
 #define REED_CLOSE_GPIO_Port GPIOB

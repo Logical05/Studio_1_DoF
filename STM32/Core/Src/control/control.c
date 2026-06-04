@@ -82,7 +82,7 @@ void Control_UpdateFastISR(void) {
      * Disturbance observer
      */
     float tau_disturb = KF_GetLoadTorque();
-    float v_disturb   = (MOTOR_R / MOTOR_KT) * tau_disturb;
+    float v_disturb   = -(MOTOR_R / MOTOR_KT) * tau_disturb;
 
     /*
      * Motor output

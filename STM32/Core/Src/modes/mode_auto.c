@@ -76,7 +76,7 @@ void Mode_Auto_Update(void) {
 		build_auto_points(count);
 
 		Trajectory_Start(auto_points, count, QEI_GetTheta(), TRAJ_PICK_VMAX,
-			TRAJ_PICK_AMAX, TRAJ_PICK_JMAX);
+			TRAJ_PICK_AMAX, TRAJ_PICK_JMAX, TRAJECTORY_SCURVE);
 
 		auto_started = true;
 		waiting_action = false;

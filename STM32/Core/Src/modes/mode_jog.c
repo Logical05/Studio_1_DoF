@@ -33,7 +33,7 @@ void Mode_Jog_Update(void) {
 
         jog_points[0] = Control_GetReferencePosition() + target;
 
-        Trajectory_Start(jog_points, 1, QEI_GetTheta(),TRAJ_PICK_VMAX, TRAJ_PICK_AMAX, TRAJ_PICK_JMAX);
+        Trajectory_Start(jog_points, 1, QEI_GetTheta(),TRAJ_PICK_VMAX, TRAJ_PICK_AMAX, TRAJ_PICK_JMAX, TRAJECTORY_SCURVE);
 
         started = true;
     }

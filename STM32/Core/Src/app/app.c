@@ -5,12 +5,12 @@
  *      Author: rajap
  */
 
+#include <control/joy_cmd_bridge.h>
 #include "app/app.h"
 
 #include "app/mode_manager.h"
 #include "app/safety.h"
 #include "comm/joy.h"
-#include "control/joy_cmd_bridge.h"
 #include "comm/charmander.h"
 #include "comm/charmander_bridge.h"
 #include "config/pinmap.h"
@@ -20,7 +20,6 @@
 #include "drivers/qei.h"
 #include "gpio.h"
 #include "usart.h"
-#include "comm/aican.h"
 #include "modes/mode_sethome.h"
 
 void App_Init(void) {
@@ -43,14 +42,6 @@ void App_Update(void) {
 	 * Synchronize safety state
 	 */
 	Safety_Update();
-
-	/*
-	 * Joystick input
-	 */
-	JOY_Update();
-	JoyCmdBridge_Update();
-
-	AICAN_Update();
 
 	/*
 	 * Push feedback to Modbus

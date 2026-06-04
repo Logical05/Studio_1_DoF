@@ -51,13 +51,13 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, SSR_TRIG_Pin|GP_OPEN_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(SSR_TRIG_GPIO_Port, SSR_TRIG_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, LD2_Pin|GP_DOWN_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, MOTOR_DIR_Pin|GP_CLOSE_Pin|GP_UP_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, MOTOR_DIR_Pin|GP_OPEN_Pin|GP_CLOSE_Pin|GP_UP_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : PC14 PC15 PROX_IN_Pin RELAY_IN_Pin */
   GPIO_InitStruct.Pin = GPIO_PIN_14|GPIO_PIN_15|PROX_IN_Pin|RELAY_IN_Pin;
@@ -65,12 +65,12 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : SSR_TRIG_Pin GP_OPEN_Pin */
-  GPIO_InitStruct.Pin = SSR_TRIG_Pin|GP_OPEN_Pin;
+  /*Configure GPIO pin : SSR_TRIG_Pin */
+  GPIO_InitStruct.Pin = SSR_TRIG_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+  HAL_GPIO_Init(SSR_TRIG_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LD2_Pin */
   GPIO_InitStruct.Pin = LD2_Pin;
@@ -92,8 +92,8 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(MOTOR_DIR_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : GP_CLOSE_Pin GP_UP_Pin */
-  GPIO_InitStruct.Pin = GP_CLOSE_Pin|GP_UP_Pin;
+  /*Configure GPIO pins : GP_OPEN_Pin GP_CLOSE_Pin GP_UP_Pin */
+  GPIO_InitStruct.Pin = GP_OPEN_Pin|GP_CLOSE_Pin|GP_UP_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

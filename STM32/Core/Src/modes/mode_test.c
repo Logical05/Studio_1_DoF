@@ -56,7 +56,7 @@ void Mode_Test_Precision(void) {
 		}
 
 		Trajectory_Start(test_points, repeat * 2U, QEI_GetTheta(), TRAJ_PICK_VMAX,
-		TRAJ_PICK_AMAX, TRAJ_PICK_JMAX);
+		TRAJ_PICK_AMAX, TRAJ_PICK_JMAX, TRAJECTORY_SCURVE);
 
 		started = true;
 	}
@@ -95,7 +95,7 @@ void Mode_Test_Performance(void) {
 		perf_acceleration = clampf_max(perf_acceleration, TRAJ_PICK_AMAX);
 
 		Trajectory_Start(&target_position, 1U, current_position, perf_velocity,
-			perf_acceleration, TRAJ_PICK_JMAX);
+			perf_acceleration, TRAJ_PICK_JMAX, TRAJECTORY_SCURVE);
 
 		started = true;
 	}

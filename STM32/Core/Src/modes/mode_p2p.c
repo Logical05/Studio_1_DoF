@@ -49,7 +49,7 @@ void Mode_P2P_Update(void) {
 
         p2p_points[0] = theta + (rad - now);
 
-        Trajectory_Start(p2p_points, 1, QEI_GetTheta(),TRAJ_PICK_VMAX, TRAJ_PICK_AMAX, TRAJ_PICK_JMAX);
+        Trajectory_Start(p2p_points, 1, QEI_GetTheta(),TRAJ_PICK_VMAX, TRAJ_PICK_AMAX, TRAJ_PICK_JMAX, TRAJECTORY_SCURVE);
 
         started = true;
 

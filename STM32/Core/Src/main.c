@@ -15,7 +15,6 @@
 #include "comm/charmander.h"
 #include "config/robot_config.h"
 #include "control/control.h"
-#include "control/joy_cmd_bridge.h"
 #include "control/trajectory_manager.h"
 #include "drivers/io.h"
 #include "drivers/qei.h"
@@ -46,7 +45,6 @@ bool c = false;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-void AICAN_Init();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -92,8 +90,6 @@ int main(void)
 	HAL_TIM_Base_Start_IT(&htim7);
 
 	App_Init();
-	AICAN_Init(&hfdcan1);
-	/* USER CODE END 2 */
   /* USER CODE END 2 */
 
   /* Infinite loop */
