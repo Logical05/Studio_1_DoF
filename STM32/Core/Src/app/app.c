@@ -21,6 +21,7 @@
 #include "gpio.h"
 #include "usart.h"
 #include "modes/mode_sethome.h"
+#include "comm/aican.h"
 
 void App_Init(void) {
 	Safety_Init();
@@ -54,6 +55,7 @@ void App_Update(void) {
 	 */
 	JOY_Update();
 	JoyCmdBridge_Update();
+	AICAN_Update();
 
 	/*
 	 * Update gripper FSM

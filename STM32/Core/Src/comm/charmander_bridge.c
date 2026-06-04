@@ -15,6 +15,7 @@
 #include "shared/robot_math.h"
 #include "stm32g4xx_hal.h"
 #include "usart.h"
+#include "comm/aican.h"
 
 static uint8_t rx_byte;
 
@@ -109,4 +110,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 		HAL_UART_Receive_IT(&hlpuart1, &rx_byte, 1);
 	}
 	JOY_RxCpltCallback(huart);
+}
+
+/* FDCAN Callback */
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
+	if (hfdcan->Instance == FDCAN1) {
+		AICAN_ProcessInterrupt(hfdcan, RxFifo0ITs);
+	}
 }
