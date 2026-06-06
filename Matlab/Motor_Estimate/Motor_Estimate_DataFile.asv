@@ -3,31 +3,30 @@ clear;
 close all;
 
 % Load Data
-data_12V = readtable("data\12V-2.csv");
-data_24V = readtable("data\24V-2.csv");
+data_5V = readtable("data\5V-Step.csv");
+data_10V = readtable("data\10V-Step.csv");
 
 % Extract collected data
-idx_12V = height(data_12V);
-idx_24V = height(data_24V);
+idx_5V = height(data_5V);
+idx_10V = height(data_10V);
 
 % Time vector
 dt = 0.001;
 
-Time_12V = (0:idx_12V-1)' * dt;
-Omega_12V = data_12V.QEIdata_omega;
-Theta_12V = data_12V.QEIdata_theta;
-voltage_12V = data_12V.Voltage(1);
+Time_5V = (0:idx_5V-1)' * dt;
+Omega_12V = data_5V.QEIdata_omega;
+Theta_12V = data_5V.QEIdata_theta;
+voltage_12V = data_5V.Voltage(1);
 
-Time_24V = (0:idx_24V-1)' * dt;
-Omega_24V = data_24V.QEIdata_omega;
-Theta_24V = data_24V.QEIdata_theta;
-voltage_24V = data_24V.Voltage(1);
+Time_24V = (0:idx_10V-1)' * dt;
+Omega_24V = data_10V.QEIdata_omega;
+Theta_24V = data_10V.QEIdata_theta;
+voltage_24V = data_10V.Voltage(1);
 
 
 % Motor Parameter
 motor_R = 9.047391929;     % [ohm]
 motor_L = 0.001741906;     % [H]
-motor_K = 1;     % [V * S/rad]
-motor_B = 0.1;     % [N * m * S/rad]
-motor_J = 0.0001;        % [kg * m^2]
-
+motor_K = 2.2321;    % [N * m/A]
+motor_B = 0.78891;    % [N * m * S/rad]
+motor_J = 0.029842;    % [kg * m^2]

@@ -2,31 +2,82 @@ clc;
 clear;
 close all;
 
-% Load Data
-data_12V = readtable("data\12V-2.csv");
-data_24V = readtable("data\24V-2.csv");
+%% Configuration
+Ts = 0.001;
 
-% Extract collected data
-idx_12V = height(data_12V);
-idx_24V = height(data_24V);
+files = {
+    '5V-Chirp.csv'
+    '5V-Step.csv'
+    '5V-Stair.csv'
+    '5V-Sine.csv'
+    '5V-Ramp.csv'
+    '10V-Chirp.csv'
+    '10V-Step.csv'
+    '10V-Stair.csv'
+    '10V-Sine.csv'
+    '10V-Ramp.csv'
+};
 
-% Time vector
-dt = 0.001;
+%% Load All Experiments
+expData = struct();
 
-Time_12V = (0:idx_12V-1)' * dt;
-Omega_12V = data_12V.QEIdata_omega;
-Theta_12V = data_12V.QEIdata_theta;
-voltage_12V = data_12V.Voltage(1);
+for k = 1:numel(files)
 
-Time_24V = (0:idx_24V-1)' * dt;
-Omega_24V = data_24V.QEIdata_omega;
-Theta_24V = data_24V.QEIdata_theta;
-voltage_24V = data_24V.Voltage(1);
+    filename = fullfile('data', files{k});
 
+    T = readtable(filename);
 
-% Motor Parameter
+    % Extract
+    t_raw = T.time;
+    u_raw = T.motor_voltage;
+    y_raw = T.qei_omega;
+
+    % Remove duplicate timestamps
+    [t_raw, idx] = unique(t_raw);
+
+    u_raw = u_raw(idx);
+    y_raw = y_raw(idx);
+
+    % Uniform time base
+    t = (t_raw(1):Ts:t_raw(end))';
+
+    % Resample
+    u = interp1(t_raw,u_raw,t,'linear');
+    y = interp1(t_raw,y_raw,t,'linear');
+
+    % Create valid field name
+    name = erase(files{k},'.csv');
+    name = matlab.lang.makeValidName(name);
+
+    % Store
+    expData.(name).time = t;
+    expData.(name).input = u;
+    expData.(name).output = y;
+
+    expData.(name).input_ts = timeseries(u,t);
+    expData.(name).output_ts = timeseries(y,t);
+
+end
+
+names = fieldnames(expData);
+
+for k = 1:numel(names)
+
+    assignin('base', ...
+        ['input_' names{k}], ...
+        expData.(names{k}).input_ts);
+
+    assignin('base', ...
+        ['output_' names{k}], ...
+        expData.(names{k}).output_ts);
+
+end
+
+%% Motor Parameter
 motor_R = 9.047391929;     % [ohm]
 motor_L = 0.001741906;     % [H]
-motor_K = 2.2321;    % [N * m/A]
-motor_B = 0.78891;    % [N * m * S/rad]
-motor_J = 0.029842;    % [kg * m^2]
+motor_Kt = 2.145;    % [N * m/A]
+motor_n = 0.8;
+motor_B = 1.0439;    % [N * m * S/rad]
+motor_J = 0.0808290903;    % [kg * m^2]
+
