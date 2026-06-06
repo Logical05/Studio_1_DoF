@@ -8,9 +8,10 @@
 #ifndef INC_GRIPPER_H_
 #define INC_GRIPPER_H_
 
-#include <stdbool.h>
-
 #include "config/pinmap.h"
+
+#include <stdbool.h>
+#include <stdint.h>
 
 /* ============================================================================
  * Config
@@ -18,7 +19,7 @@
 
 #define REED_ACTIVE_STATE GPIO_PIN_SET
 
-#define GRIPPER_ON GPIO_PIN_SET
+#define GRIPPER_ON  GPIO_PIN_SET
 #define GRIPPER_OFF GPIO_PIN_RESET
 
 #define GRIPPER_TIMEOUT_MS 2000
@@ -28,44 +29,60 @@
  * ========================================================================== */
 
 typedef enum {
-	GRIPPER_SEQ_IDLE = 0, GRIPPER_SEQ_PICK, GRIPPER_SEQ_PLACE
+    GRIPPER_SEQ_IDLE = 0,
+    GRIPPER_SEQ_PICK,
+    GRIPPER_SEQ_PLACE
 } GripperSequence_t;
 
 typedef enum {
-	GRIPPER_IDLE = 0,
+    GRIPPER_IDLE = 0,
 
-	GRIPPER_OPENING, GRIPPER_CLOSING, GRIPPER_MOVING_UP, GRIPPER_MOVING_DOWN,
+    GRIPPER_OPENING,
+    GRIPPER_CLOSING,
+    GRIPPER_MOVING_UP,
+    GRIPPER_MOVING_DOWN,
 
-	/* PICK */
-	GRIPPER_PICK_DOWN, GRIPPER_PICK_CLOSE, GRIPPER_PICK_UP,
+    /* PICK */
+    GRIPPER_PICK_DOWN,
+    GRIPPER_PICK_CLOSE,
+    GRIPPER_PICK_UP,
 
-	/* PLACE */
-	GRIPPER_PLACE_DOWN, GRIPPER_PLACE_OPEN, GRIPPER_PLACE_UP,
+    /* PLACE */
+    GRIPPER_PLACE_DOWN,
+    GRIPPER_PLACE_OPEN,
+    GRIPPER_PLACE_UP,
 
-	GRIPPER_SUCCESS, GRIPPER_TIMEOUT
+    GRIPPER_SUCCESS,
+    GRIPPER_TIMEOUT
 } GripperState_t;
 
 typedef enum {
-	GRIPPER_CMD_NONE = 0,
+    GRIPPER_CMD_NONE = 0,
 
-	GRIPPER_CMD_OPEN, GRIPPER_CMD_CLOSE,
+    GRIPPER_CMD_OPEN,
+    GRIPPER_CMD_CLOSE,
 
-	GRIPPER_CMD_UP, GRIPPER_CMD_DOWN,
+    GRIPPER_CMD_UP,
+    GRIPPER_CMD_DOWN,
 
-	/* high-level */
+    /* high-level */
 
-	GRIPPER_CMD_PICK, GRIPPER_CMD_PLACE
+    GRIPPER_CMD_PICK,
+    GRIPPER_CMD_PLACE
 
 } GripperCommand_t;
 
 typedef struct {
-	GripperState_t state;
+        GripperState_t state;
 
-	GripperCommand_t cmd;
+        GripperCommand_t cmd;
 
-	uint32_t tick;
+        bool gripper_is_closed;
+		bool gripper_is_down;
 
-	bool busy;
+        uint32_t tick;
+
+        bool busy;
 } Gripper_t;
 
 /* ============================================================================
@@ -86,6 +103,7 @@ bool Gripper_Command(GripperCommand_t cmd);
 
 bool Gripper_IsBusy(void);
 
+bool Gripper_IsOpened(void);
 bool Gripper_IsClosed(void);
 bool Gripper_IsUp(void);
 bool Gripper_IsDown(void);

@@ -20,7 +20,7 @@
  *  - Slew rate limiter: smooths out voltage changes per tick
  */
 
-#include <control/joy_cmd_bridge.h>
+#include "control/joy_cmd_bridge.h"
 #include "app/safety.h"
 #include "comm/charmander.h"
 #include "comm/joy.h"
