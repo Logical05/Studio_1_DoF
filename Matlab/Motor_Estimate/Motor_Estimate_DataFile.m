@@ -76,8 +76,8 @@ end
 %% Motor Parameter
 motor_R = 9.047391929;     % [ohm]
 motor_L = 0.001741906;     % [H]
-motor_Kt = 2.145;    % [N * m/A]
-motor_n = 0.8;
-motor_B = 1.0439;    % [N * m * S/rad]
-motor_J = 0.0808290903;    % [kg * m^2]
+motor_Kt = 2.594477849336442;    % [N * m/A]
+motor_n = 0.794535644305898;
+motor_B = 1.036743055651295;    % [N * m * S/rad]
+motor_J = 0.092718896322627;    % [kg * m^2]
 
