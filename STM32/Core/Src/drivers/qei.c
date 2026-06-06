@@ -52,7 +52,7 @@ void QEI_UpdateISR(void) {
      * Observer update
      */
     KF_Predict(Motor_GetVoltage());
-    KF_SetQ(KF_Q_T, KF_Q_O, KF_Q_C, KF_Q_L);
+    KF_SetQ(KF_Q, KF_Q * 10, KF_Q * 10, KF_Q * 100);
     KF_Update(qei.theta);
 
     qei.omega_filtered = KF_GetOmega();

@@ -12,8 +12,7 @@
 #include "control/pid.h"
 #include "drivers/motor.h"
 #include "drivers/qei.h"
-
-#include <math.h>
+#include "shared/robot_math.h"
 
 typedef struct {
         float position;
@@ -45,7 +44,7 @@ void Control_Init(void) {
      * Kalman observer
      */
     KF_DCMotor_Init(CONTROL_FAST_DT, MOTOR_J, MOTOR_B, MOTOR_KT, MOTOR_KE, MOTOR_R,
-                    MOTOR_L, KF_Q_T, KF_R);
+                    MOTOR_L, KF_Q, KF_R);
 }
 
 void Control_Reset(void) {
@@ -82,7 +81,7 @@ void Control_UpdateFastISR(void) {
      * Disturbance observer
      */
     float tau_disturb = KF_GetLoadTorque();
-    float v_disturb   = -(MOTOR_R / MOTOR_KT) * tau_disturb;
+    float v_disturb   = (MOTOR_R / MOTOR_KT) * tau_disturb;
 
     /*
      * Motor output
@@ -99,9 +98,11 @@ static float Feedforward_Calc(float dq_ref, float ddq_ref) {
     /*
      * Inverse dynamics
      *
-     * tau = J*ddq + B*dq
+     * tau = J*ddq + B*dq + Fc*sign(dq)
+     *     = tau_inertia + tau_viscous + tau_coulomb
      */
-    float tau_ff = MOTOR_J * ddq_ref + MOTOR_B * dq_ref;
+    float tau_ff = MOTOR_J * ddq_ref + MOTOR_B * dq_ref + MOTOR_FC * signf_fast(dq_ref);
+    ;
 
     /*
      * Torque -> voltage

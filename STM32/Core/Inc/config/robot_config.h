@@ -25,14 +25,16 @@
 
 #define MOTOR_MAX_VOLTAGE 24.0f
 
-#define MOTOR_J 0.029842f
-#define MOTOR_B 0.78891f
+#define MOTOR_J 0.092718896322627f
+#define MOTOR_B 1.036743055651295f
 
-#define MOTOR_KT 2.2321f
-#define MOTOR_KE 2.2321f
+#define MOTOR_KT 2.594477849336442f
+#define MOTOR_KE 2.061405129659911f
 
 #define MOTOR_R 9.0473919f
 #define MOTOR_L 0.0017419f
+
+#define MOTOR_FC 0.5735305551064815f
 
 /*
  * ============================================================
@@ -94,11 +96,7 @@
  * ============================================================
  */
 
-#define KF_Q_T 1.0e-3f
-#define KF_Q_O 1.0e-2f
-#define KF_Q_C 1.0e-2f
-#define KF_Q_L 1.0e-1f
-
+static float KF_Q = 1.0e-3f;
 #define KF_R 5e-5f
 
 /*
