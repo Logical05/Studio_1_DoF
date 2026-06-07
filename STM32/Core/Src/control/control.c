@@ -25,6 +25,7 @@ static MotionReference_t reference = {0};
 static PID_TypeDef position_pid = {0};
 static PID_TypeDef velocity_pid = {0};
 
+static float Disturbance_Comp_Calc();
 static float Feedforward_Calc(float dq_ref, float ddq_ref);
 
 void Control_Init(void) {
