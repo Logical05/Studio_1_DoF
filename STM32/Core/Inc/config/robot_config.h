@@ -34,6 +34,10 @@
 #define MOTOR_R 9.0473919f
 #define MOTOR_L 0.0017419f
 
+/*
+* T_fc = MOTOR_KT * VOLT_FF / MOTOR_R
+* VOLT_FF is voltage at which motor can just overcome Coulomb friction and start moving.
+*/
 #define MOTOR_FC 0.8602958326597222f
 
 /*

@@ -80,8 +80,7 @@ void Control_UpdateFastISR(void) {
     /*
      * Disturbance observer
      */
-    float tau_disturb = KF_GetLoadTorque();
-    float v_disturb   = (MOTOR_R / MOTOR_KT) * tau_disturb;
+    float v_disturb = Disturbance_Comp_Calc();
 
     /*
      * Motor output
@@ -92,6 +91,14 @@ void Control_UpdateFastISR(void) {
 
 void Control_UpdateSlowISR(void) {
     PID_Calc(&position_pid, reference.position, QEI_GetTheta());
+}
+
+static float Disturbance_Comp_Calc() {
+    float tau_disturb = KF_GetLoadTorque();
+
+    float v_disturb = (MOTOR_R / MOTOR_KT) * tau_disturb;
+
+    return v_disturb;
 }
 
 static float Feedforward_Calc(float dq_ref, float ddq_ref) {
