@@ -101,7 +101,8 @@ static float Feedforward_Calc(float dq_ref, float ddq_ref) {
      * tau = J*ddq + B*dq + Fc*sign(dq)
      *     = tau_inertia + tau_viscous + tau_coulomb
      */
-    float tau_ff = MOTOR_J * ddq_ref + MOTOR_B * dq_ref + MOTOR_FC * signf_fast(dq_ref);
+    float tau_ff =
+        MOTOR_J * ddq_ref + MOTOR_B * dq_ref + MOTOR_FC * signf_fast(dq_ref);
     ;
 
     /*

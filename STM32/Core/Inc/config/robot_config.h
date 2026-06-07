@@ -34,7 +34,7 @@
 #define MOTOR_R 9.0473919f
 #define MOTOR_L 0.0017419f
 
-#define MOTOR_FC 0.5735305551064815f
+#define MOTOR_FC 0.8602958326597222f
 
 /*
  * ============================================================
@@ -71,9 +71,13 @@
  * ============================================================
  */
 
-#define POSITION_KP 3.0f
+#define POSITION_KP 4.15f
 #define POSITION_KI 0.0f
-#define POSITION_KD 0.12f
+#define POSITION_KD 1e-10f
+
+// #define POSITION_KP 3.0f
+// #define POSITION_KI 0.0f
+// #define POSITION_KD 0.12f
 
 #define POSITION_LIMIT 5.31f
 
@@ -83,12 +87,16 @@
  * ============================================================
  */
 
-#define VELOCITY_KP 6.7f
-#define VELOCITY_KI 0.093f
+#define VELOCITY_KP 85.0f
+#define VELOCITY_KI 0.06f
 #define VELOCITY_KD 0.0f
 
+// #define VELOCITY_KP 6.7f
+// #define VELOCITY_KI 0.093f
+// #define VELOCITY_KD 0.0f
+
 #define VELOCITY_LIMIT          24.0f
-#define VELOCITY_INTEGRAL_LIMIT 12.0f
+#define VELOCITY_INTEGRAL_LIMIT 10.0f
 
 /*
  * ============================================================
@@ -96,8 +104,8 @@
  * ============================================================
  */
 
-static float KF_Q = 1.0e-3f;
-#define KF_R 5e-5f
+#define KF_Q 1.0e-3f
+#define KF_R 7.85e-9f
 
 /*
  * ============================================================

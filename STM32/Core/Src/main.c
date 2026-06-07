@@ -103,11 +103,11 @@ int main(void) {
         /* USER CODE BEGIN 3 */
         App_Update();
 
-        //        if (Safety_IsEmergency()) {
-        //            Motor_Brake();
-        //            continue;
-        //        }
-        //        Motor_SetVoltage(test_voltage);
+        // if (Safety_IsEmergency()) {
+        //     Motor_Brake();
+        //     continue;
+        // }
+        // Motor_SetVoltage(test_voltage);
     }
     /* USER CODE END 3 */
 }

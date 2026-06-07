@@ -22,3 +22,26 @@ plant_velocity = tf(motor_K, den);
 plant_theta = plant_velocity * tf(1,[1 0]);
 
 controlSystemDesigner(plant_theta);
+
+% 
+% s = tf('s');
+% 
+% % Velocity Plant
+% den = (motor_L*s + motor_R) * ...
+%       (motor_J*s + motor_B) + ...
+%       motor_K^2;
+% 
+% Gv = motor_K / den;
+% 
+% % Position Plant
+% Gp = Gv / s;
+% 
+% % controlSystemDesigner(Gv)
+% 
+% Tv = feedback(C * Gv, 1);
+% 
+% s = tf('s');
+% 
+% Gp_outer = Tv / s;
+% 
+% controlSystemDesigner(Gp_outer)
